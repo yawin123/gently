@@ -1,0 +1,387 @@
+# ============================================================
+# Gentoo Installer — config.toml
+# ============================================================
+
+# ------------------------------------------------------------
+# SYSTEM
+# ------------------------------------------------------------
+[system]
+hostname  = "merry"
+timezone  = "Europe/Madrid"
+locale    = "es_ES.UTF-8"
+# List of locales to generate in /etc/locale.gen
+locales   = ["es_ES.UTF-8 UTF-8", "en_US.UTF-8 UTF-8"]
+keymap    = "es"
+# Default system language (LANG in /etc/env.d/)
+lang      = "es_ES.UTF-8"
+
+
+# ------------------------------------------------------------
+# STAGE3
+# ------------------------------------------------------------
+[stage3]
+arch    = "amd64"       # amd64 | arm64 | x86 | ppc64 | riscv
+# Stage3 variant. Determines the init system and base profile.
+variant = "openrc"      # openrc | systemd | hardened | musl | nomultilib | desktop
+mirror  = "https://distfiles.gentoo.org"
+
+# Stage3 source — three mutually exclusive modes by priority:
+#
+# 1. Local path: use an already-downloaded tarball. The installer does not
+#    access the network to obtain the stage3 (it does for Portage sync and emerge).
+# local_path = "/root/stage3-amd64-openrc-20250101.tar.xz"
+#
+# 2. Explicit URL: download exactly this tarball. Useful for
+#    reproducible installations where the exact version matters.
+# tarball_url = "https://distfiles.gentoo.org/releases/amd64/autobuilds/..."
+#
+# 3. Neither of the above: the installer queries the Gentoo autobuilds
+#    and downloads the latest stage3 available for arch+variant.
+
+# GPG signature verification. Applies to automatic download and URL.
+# For local_path, looks for a .asc file next to the tarball with the same name.
+verify_signature = true
+
+
+# ------------------------------------------------------------
+# DISK
+# ------------------------------------------------------------
+# [[disks]] (array of tables) is used to allow multiple disks in v2.
+# In v1 only the first one is processed; if there are more than one
+# the installer emits an explicit warning and stops.
+#
+# If device is omitted in the only defined disk, the installer lists
+# available disks and asks.
+
+[[disks]]
+id              = "primary"
+device          = "/dev/sda"
+partition_table = "gpt"     # gpt | msdos
+boot_mode       = "uefi"    # uefi | bios
+# If true, explicit confirmation is requested before writing to disk
+# even if the config is fully unattended. Safety measure.
+confirm_wipe    = true
+
+[[disks.partitions]]
+label      = "boot"
+size       = "512M"
+filesystem = "vfat"
+mount      = "/boot/efi"
+flags      = ["esp"]
+
+[[disks.partitions]]
+label      = "swap"
+size       = "8G"
+filesystem = "swap"
+# LUKS encryption (v2):
+# luks       = true
+# luks_label = "cryptswap"
+
+[[disks.partitions]]
+label         = "root"
+size          = "remaining"   # special value: takes the rest of the disk
+filesystem    = "ext4"        # ext4 | btrfs | xfs | f2fs
+mount         = "/"
+mount_options = "noatime"     # extra options for mount and fstab
+
+# btrfs subvolumes (v2, only if filesystem = "btrfs"):
+# [[disks.partitions.subvolumes]]
+# name  = "@"
+# mount = "/"
+# [[disks.partitions.subvolumes]]
+# name  = "@home"
+# mount = "/home"
+
+# Second disk (v2):
+# [[disks]]
+# id              = "data"
+# device          = "/dev/sdb"
+# partition_table = "gpt"
+# confirm_wipe    = true
+# [[disks.partitions]]
+# label         = "home"
+# size          = "remaining"
+# filesystem    = "ext4"
+# mount         = "/home"
+# mount_options = "noatime"
+
+
+# ------------------------------------------------------------
+# PORTAGE — Global configuration (make.conf)
+# ------------------------------------------------------------
+[portage]
+cflags          = "-O2 -pipe -march=native"
+cxxflags        = "-O2 -pipe -march=native"
+makeopts        = "-j8"
+# CPU_FLAGS_X86 — if omitted, the installer can auto-detect with cpuid2cpuflags
+cpu_flags       = ["sse4_2", "avx2", "aes", "mmx", "sse", "sse2", "sse3", "ssse3"]
+use             = ["alsa", "X", "-bluetooth", "-systemd"]
+accept_keywords = "amd64"          # amd64 | ~amd64 | etc.
+accept_license  = "@FREE"
+video_cards     = ["intel"]
+input_devices   = ["libinput"]
+mirrors         = ["https://distfiles.gentoo.org"]
+# Additional Portage features
+features        = ["parallel-fetch", "candy"]
+# Official binary package repository (Gentoo binary host)
+# getbinpkg  = false
+# binpkg_format = "gpkg"
+# binhost    = "https://packages.gentoo.org/packages"
+
+[portage.profile]
+# Full profile. If omitted, inferred from the stage3 variant.
+name = "default/linux/amd64/23.0/desktop"
+
+# Additional repositories (equivalent to repos.conf)
+[[portage.repos]]
+name      = "gentoo"
+sync_type = "rsync"
+sync_uri  = "rsync://rsync.gentoo.org/gentoo-portage"
+
+# [[portage.repos]]
+# name      = "guru"
+# sync_type = "git"
+# sync_uri  = "https://github.com/gentoo-mirror/guru.git"
+
+
+# ------------------------------------------------------------
+# PORTAGE — Per-package configuration (optional)
+# ------------------------------------------------------------
+# Each subsection corresponds to a file in /etc/portage/package.*/
+# If this entire section is omitted, no overrides are created.
+
+[portage.packages.use]
+# atom -> list of flags (positive or negative)
+"net-misc/networkmanager" = ["wifi", "-dhcpcd"]
+"media-video/ffmpeg"      = ["x264", "x265", "opus"]
+
+[portage.packages.accept_keywords]
+# atom -> list of keywords. Typical for ~arch packages or live ebuilds.
+"dev-util/some-package" = ["~amd64"]
+"app-misc/other"        = ["**"]    # any keyword (live ebuilds)
+
+[portage.packages.license]
+# atom -> list of extra accepted licenses for that package
+"sys-firmware/intel-microcode" = ["intel-ucode"]
+"www-client/google-chrome"     = ["google-chrome"]
+
+[portage.packages.mask]
+# Atoms to mask
+mask   = [">=dev-lang/python-3.13"]
+
+[portage.packages.unmask]
+# Atoms to unmask
+unmask = ["=media-video/ffmpeg-6.1"]
+
+[portage.packages.env]
+# atom -> filename in /etc/portage/env/
+# Allows compiling specific packages with different flags or variables.
+"dev-libs/some-heavy-lib" = "no-lto"
+
+
+# ------------------------------------------------------------
+# KERNEL
+# ------------------------------------------------------------
+[kernel]
+# Kernel installation method.
+#
+# Implemented in v1:
+#   binary    — emerge sys-kernel/gentoo-kernel-bin (no local compilation)
+#   gentoo    — emerge sys-kernel/gentoo-kernel (compiles locally)
+#
+# Planned for v2:
+#   menuconfig — manual interactive compilation with custom .config
+#   custom     — a pre-existing .config is provided, compiles without interaction
+#
+# The method key accepts future additional values without breaking
+# compatibility; the installer will reject with a clear error
+# any unrecognized value for the version in use.
+method = "binary"
+
+# Additional modules to include (independent of the method)
+# extra_modules = ["v4l2loopback", "virtualbox"]
+
+# [kernel.custom]
+# Only relevant if method = "custom" or "menuconfig" (v2)
+# config_path = "/path/to/.config"
+
+
+# ------------------------------------------------------------
+# BOOTLOADER
+# ------------------------------------------------------------
+[bootloader]
+type = "grub"   # grub | systemd-boot | limine (future)
+
+[bootloader.grub]
+platforms     = ["efi-64"]   # efi-64 | pc
+install_disk  = "/dev/sda"   # for BIOS; ignored in UEFI
+timeout       = 5
+# Extra parameters added to GRUB_CMDLINE_LINUX
+cmdline_extra = ["quiet", "splash"]
+
+# [bootloader.systemd-boot]
+# timeout = 5
+
+
+# ------------------------------------------------------------
+# SERVICES
+# ------------------------------------------------------------
+# Declarative approach by role: specify which daemon is wanted
+# for each function. The installer emerges the package and activates it.
+# Unmentioned roles generate no action (no emerge, no activation).
+# In systemd, some roles are part of the init itself
+# (logging, ntp) and the installer accounts for that.
+
+[services.roles]
+cron      = "cronie"          # cronie | fcron | bcron | none
+logging   = "sysklogd"        # sysklogd | syslog-ng | metalog | none
+network   = "NetworkManager"  # NetworkManager | dhcpcd | netifrc | iwd
+ssh       = "openssh"         # openssh | dropbear | none
+ntp       = "chrony"          # chrony | openntpd | ntp | none
+firewall  = "nftables"        # nftables | iptables | ufw | none
+printing  = "cups"            # cups | none
+bluetooth = "none"            # bluez | none
+
+# Network configuration of the installed system.
+# Depends on services.roles.network.
+# If omitted, the manager is installed and activated but no interfaces are pre-configured.
+[services.network]
+# [services.network.interfaces.eth0]
+# mode    = "dhcp"
+
+# [services.network.interfaces.eth0]
+# mode    = "static"
+# address = "192.168.1.100/24"
+# gateway = "192.168.1.1"
+# dns     = ["1.1.1.1", "8.8.8.8"]
+
+# Additional services that do not fit any defined role.
+# For hardware daemons, agents, containers, etc.
+[services.extra]
+enable = []
+# enable = ["libvirtd", "docker"]
+
+
+# ------------------------------------------------------------
+# USERS AND PASSWORDS
+# ------------------------------------------------------------
+# Three modes for passwords, compatible with each other by priority:
+#   1. credentials_file: external TOML with passwords (highest priority)
+#   2. password / password_hash inline in this section
+#   3. Absent: the installer prompts at runtime
+#
+# The credentials_file only contains the password or password_hash keys
+# for root and each account, with the same structure as this section.
+# Keeping it separate allows excluding it from version control.
+#
+# password_hash uses the /etc/shadow format (SHA-512: $6$salt$hash...)
+
+[users]
+# credentials_file = "/path/to/credentials.toml"
+# credentials_file_shadow = "/path/to/credentials_shadow.toml"
+
+[users.accounts]
+name        = "root"
+# password      = "plain_text"
+# password_hash = "$6$salt$hash..."
+# ssh_authorized_keys = ["ssh-ed25519 AAAA..."]   # future
+
+[[users.accounts]]
+name        = "yawin"
+# password      = "plain_text"
+# password_hash = "$6$salt$hash..."
+groups      = ["wheel", "audio", "video", "usb", "plugdev", "portage"]
+shell       = "/bin/bash"
+comment     = "Miguel"
+create_home = true
+# ssh_authorized_keys = ["ssh-ed25519 AAAA..."]   # future
+
+
+# ------------------------------------------------------------
+# ADDITIONAL PACKAGES
+# ------------------------------------------------------------
+[packages]
+# Installed at the end, after the base system.
+extra = [
+    "app-editors/vim",
+    "dev-vcs/git",
+    "sys-process/htop",
+    "app-misc/tmux",
+]
+# Packages that must be compiled from source even when using binpkgs:
+# source_only = ["dev-libs/some-lib"]
+
+
+# ------------------------------------------------------------
+# DISTCC (optional)
+# ------------------------------------------------------------
+# If this section is absent or enabled = false, distcc is not used.
+# The installer adds "distcc" to FEATURES and adjusts MAKEOPTS
+# based on the jobs calculated from the hosts.
+#
+# PRECONDITION: remote hosts must have distccd running
+# and accessible before launching the installer.
+
+[distcc]
+enabled = true
+
+# Hosts in native distcc format:
+#   "host"            — default slots (4)
+#   "host/N"          — N slots
+#   "host/N,lzo"      — with lzo compression
+#   "host/N,lzo,cpp"  — with pump mode enabled per host
+hosts = [
+    "192.168.1.10/8,lzo",
+    "192.168.1.11/4,lzo",
+    "localhost/2",
+]
+
+# Jobs passed to make (-jN in MAKEOPTS).
+# If omitted, the installer calculates them by summing all slots
+# declared in hosts (including localhost).
+# makeopts_jobs = 14
+
+# Pump mode: distributed preprocessing on the remote host.
+# Requires all hosts to have cpp declared in hosts above.
+pump_mode = false
+
+# If true, emerge distcc on the installed system in addition to using it
+# during the installation.
+install_on_target = true
+
+# distccd port on remote hosts (default: 3632)
+# port = 3632
+
+# Path to the distcc working directory inside the chroot.
+# Normally no need to change this.
+# distcc_dir = "/var/tmp/portage/.distcc"
+
+
+# ------------------------------------------------------------
+# DESKTOP ENVIRONMENT (v2)
+# ------------------------------------------------------------
+# [desktop]
+# environment     = "plasma"   # plasma | gnome | xfce | sway | hyprland
+# display_manager = "sddm"     # sddm | gdm | lightdm | greetd | none
+# wayland         = true
+
+
+# ------------------------------------------------------------
+# INSTALLATION ENVIRONMENT (v2)
+# ------------------------------------------------------------
+# This section will contain the configuration of the live environment
+# from which the installer is run: network, temporary keyboard layout,
+# proxy, etc. For now it is the user's responsibility to configure
+# the environment before launching the installer.
+#
+# [install_env]
+# [install_env.network]
+# interface = "eth0"
+# mode      = "dhcp"   # dhcp | static
+# address   = "192.168.1.50/24"
+# gateway   = "192.168.1.1"
+# dns       = ["1.1.1.1"]
+# [install_env.proxy]
+# http  = "http://proxy.local:3128"
+# https = "http://proxy.local:3128"
+# no_proxy = ["localhost", "127.0.0.1"]
