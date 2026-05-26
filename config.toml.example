@@ -280,7 +280,7 @@ enable = []
 # credentials_file = "/path/to/credentials.toml"
 # credentials_file_shadow = "/path/to/credentials_shadow.toml"
 
-[users.accounts]
+[[users.accounts]]
 name        = "root"
 # password      = "plain_text"
 # password_hash = "$6$salt$hash..."
