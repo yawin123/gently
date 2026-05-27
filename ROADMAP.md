@@ -500,6 +500,65 @@ editar disco, añadir partición, editar partición, eliminar. Para ello:
 **Objetivo**: implementar las fases de instalación. El config está garantizadamente
 completo y validado al inicio de esta fase.
 
+### Estrategia de testeo para M5
+
+La instalación desatendida no se ejecuta sobre el equipo de desarrollo. Para
+garantizar seguridad y mantener cobertura alta, M5 se desarrolla con una
+estrategia de testeo por capas.
+
+#### 1. Separación plan/ejecución
+
+Cada fase se divide en dos partes:
+
+- **Planificación**: construir la secuencia de acciones/comandos a partir de
+  `GentlyConfig`.
+- **Ejecución**: aplicar esas acciones mediante un runner.
+
+La mayor parte de tests valida la planificación (determinista y no destructiva).
+
+#### 2. Runner inyectable con modo dry-run
+
+El orquestador usa un runner abstracto con dos modos:
+
+- **Real**: ejecuta comandos reales.
+- **Dry-run**: no ejecuta nada destructivo; registra comandos, orden, cwd,
+  variables de entorno y ficheros objetivo.
+
+Los tests de CI usan dry-run por defecto.
+
+#### 3. Capas de tests
+
+- **Unit tests por fase**
+  - Entrada: `GentlyConfig`.
+  - Verificación: comandos/acciones esperadas, argumentos y orden.
+  - Verificación de errores esperados y mensajes claros.
+
+- **Tests de contrato del orquestador**
+  - Orden correcto de fases.
+  - Stop on first error.
+  - Propagación de contexto de error (`phase`, `command`, `stderr`, etc.).
+
+- **Integration tests no destructivos**
+  - Uso de directorios temporales para ficheros generados.
+  - Mock/stub de utilidades del sistema (`parted`, `mkfs`, `mount`, `grub-*`,
+    etc.).
+  - Validación de side effects lógicos sin tocar discos reales.
+
+#### 4. Qué se prueba en entorno de desarrollo
+
+- **Sí**: construcción de comandos, renderizado de config, validaciones,
+  manejo de errores, orden de ejecución.
+- **No**: particionado real, formateo real, montaje real de discos del host,
+  instalación real de bootloader en el host.
+
+#### 5. Validación final de aceptación
+
+Antes de considerar M5 cerrado, ejecutar una prueba E2E en entorno aislado:
+
+- VM dedicada o disco virtual desechable.
+- Sin impacto en el host de desarrollo.
+- Resultado documentado como test de aceptación, no como test unitario/CI.
+
 El orquestador en `installer/runner.py` llama a cada fase en orden. Si una fase
 falla, muestra el error con contexto completo y detiene la ejecución. No hay
 reintentos automáticos en v1.
@@ -520,9 +579,40 @@ El orquestador las captura y las pasa a `backend.show_error`.
 
 ### Gestión del chroot
 
-La decisión sobre cómo gestionar el chroot (cuándo activarlo, cómo estructurar
-los comandos dentro de él) se tomará en el momento de implementar las fases que
-lo requieren. No se decide ahora.
+En M5 **sí** se fija una estrategia explícita de chroot, alineada con el
+handbook de Gentoo. El runner no dependerá de estado implícito de shell.
+Cada comando que deba ejecutarse en chroot se lanzará explícitamente dentro de
+`chroot /mnt/gentoo /bin/bash -lc "..."` tras preparar los bind mounts.
+
+#### Preparación previa al chroot
+
+Antes de ejecutar cualquier comando dentro de `/mnt/gentoo`, se debe garantizar:
+
+- `mount --types proc /proc /mnt/gentoo/proc`
+- `mount --rbind /sys /mnt/gentoo/sys`
+- `mount --make-rslave /mnt/gentoo/sys`
+- `mount --rbind /dev /mnt/gentoo/dev`
+- `mount --make-rslave /mnt/gentoo/dev`
+- `mount --bind /run /mnt/gentoo/run`
+- `mount --make-slave /mnt/gentoo/run`
+
+Notas:
+
+- Estas operaciones deben implementarse de forma **idempotente**.
+- Si un bind ya existe, no debe tratarse como error fatal.
+- Debe existir cleanup explícito en orden inverso al finalizar o ante error.
+
+#### Ejecución en chroot
+
+- No se mantiene estado de shell entre comandos.
+- Cada acción en chroot se expresa como comando explícito a través del runner.
+- El diseño debe funcionar igual en `LocalRunner` y `SshRunner`.
+
+#### Requisitos de testeo para chroot
+
+- Unit tests que verifiquen orden y contenido de comandos de preparación.
+- Contract tests para asegurar idempotencia y cleanup en fallo intermedio.
+- Dry-run obligatorio en CI para validar secuencia completa sin tocar el host.
 
 ### Fases en orden
 
