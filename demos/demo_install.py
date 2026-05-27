@@ -64,13 +64,15 @@ def main() -> None:
 
     backend = CursesBackend()
 
+    print("Running installation phases...")
     try:
         report = run_installation(config, runner, progress_cb=progress_cb, backend=backend)
     except Exception as exc:
         print(f"\nERROR: {exc}")
         sys.exit(1)
 
-    print("-" * 40)
+    # The backend already opened the interactive review screen via
+    # install_progress_end.  Once the user closes it we print a summary.
     print(f"Installation {'OK' if report.ok else 'FAILED'}")
     for phase in report.phases:
         status = "✓" if phase.status == "ok" else "✗"

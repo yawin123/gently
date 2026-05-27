@@ -372,6 +372,17 @@ def run_installation(
 			backend.install_progress_update(phase.key, f"Starting {phase.title}")
 		try:
 			phase.execute(config, runner)
+			# Log every command that was executed during this phase.
+			if backend is not None:
+				for cmd_result in runner.history:
+					if cmd_result.phase == phase.key:
+						backend.install_progress_update(
+							phase.key,
+							f"$ {' '.join(cmd_result.argv)}{'  [dry-run]' if cmd_result.skipped else ''}",
+						)
+						if not cmd_result.skipped and cmd_result.stdout.strip():
+							for out_line in cmd_result.stdout.strip().splitlines():
+								backend.install_progress_update(phase.key, f"  {out_line}")
 			phase_result = InstallPhaseResult(
 				key=phase.key,
 				title=phase.title,
