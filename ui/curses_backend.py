@@ -161,7 +161,7 @@ def _choice_popup(stdscr: curses.window, field: FieldSpec, current: Any) -> Any:
             win.attroff(attr)
 
         _safe(win, box_h - 1, 1,
-              " ↑↓ navigate  Enter select  Esc cancel"[:box_w - 2],
+              " ↑↓/PgUp/PgDn navigate  Enter select  Esc cancel"[:box_w - 2],
               curses.color_pair(_P_STATUS))
         win.refresh()
 
@@ -170,6 +170,10 @@ def _choice_popup(stdscr: curses.window, field: FieldSpec, current: Any) -> Any:
             sel = min(len(options) - 1, sel + 1)
         elif key == curses.KEY_UP:
             sel = max(0, sel - 1)
+        elif key == curses.KEY_NPAGE:          # PageDown
+            sel = min(len(options) - 1, sel + visible)
+        elif key == curses.KEY_PPAGE:          # PageUp
+            sel = max(0, sel - visible)
         elif key in (curses.KEY_ENTER, 10, 13):
             del win
             return options[sel]
@@ -211,7 +215,7 @@ def _list_editor(stdscr: curses.window, field: FieldSpec, current: list | None) 
             _safe(stdscr, i + 2, 0, f"{marker}{item}"[:width - 1])
             stdscr.attroff(attr)
 
-        hint = " ↑↓ navigate  A add  D delete  F10/^S confirm  Esc cancel"
+        hint = " ↑↓ navigate  A add  D delete  F10/Alt+S confirm  Esc cancel"
         stdscr.attron(curses.color_pair(_P_STATUS))
         _safe(stdscr, height - 1, 0, hint[:width - 1].ljust(width - 1))
         stdscr.attroff(curses.color_pair(_P_STATUS))
@@ -223,18 +227,42 @@ def _list_editor(stdscr: curses.window, field: FieldSpec, current: list | None) 
         elif key == curses.KEY_UP:
             sel = max(0, sel - 1)
         elif key in (ord('a'), ord('A')):
-            new = _prompt_line(stdscr, height - 2, "Add item: ")
-            if new:
-                insert_at = sel + 1 if items else 0
-                items.insert(insert_at, new)
-                sel = insert_at
+            if field.options:
+                available = [option for option in field.options if option not in items]
+                if not available:
+                    continue
+                add_field = FieldSpec(
+                    key=field.key,
+                    label=f"Add {field.label}",
+                    type="choice",
+                    default=available[0],
+                    options=available,
+                    help=field.help,
+                )
+                new = _choice_popup(stdscr, add_field, available[0])
+                if new and new not in items:
+                    insert_at = sel + 1 if items else 0
+                    items.insert(insert_at, new)
+                    sel = insert_at
+            else:
+                new = _prompt_line(stdscr, height - 2, "Add item: ")
+                if new:
+                    insert_at = sel + 1 if items else 0
+                    items.insert(insert_at, new)
+                    sel = insert_at
         elif key in (ord('d'), ord('D')) and items:
             items.pop(sel)
             sel = max(0, min(sel, len(items) - 1))
-        elif key in (curses.KEY_F10, 19):
-            return items or None
+        elif key == curses.KEY_F10:
+            return items          # [] is a valid explicit empty list
         elif key == 27:
-            return current
+            # Peek for Alt+S (ESC + 's'/'S') = confirm
+            stdscr.nodelay(True)
+            next_key = stdscr.getch()
+            stdscr.nodelay(False)
+            if next_key in (ord('s'), ord('S')):
+                return items      # Alt+S → confirm
+            return current        # plain Esc → cancel
         elif key == curses.KEY_RESIZE:
             stdscr.clear()
 
@@ -295,6 +323,12 @@ def _value_pos(form: FormSpec, field_idx: int, scroll: int, width: int) -> tuple
     return row, col, fw
 
 
+def _has_action(form: FormSpec, action_key: str) -> bool:
+    if not form.actions:
+        return False
+    return any(key == action_key for _label, key in form.actions)
+
+
 # ---------------------------------------------------------------------------
 # Form draw
 # ---------------------------------------------------------------------------
@@ -340,9 +374,10 @@ def _draw_form(
 
     # Status bar
     stdscr.attron(curses.color_pair(_P_STATUS))
-    _safe(stdscr, height - 1, 0,
-          " ↑↓/Tab navigate  Enter edit  Space toggle  F10/^S confirm  Esc cancel  ? help"
-          [:width - 1].ljust(width - 1))
+    hint = " ↑↓/Tab navigate  Enter edit  Space toggle  F10/Alt+S save  Esc cancel  ? help"
+    if _has_action(form, "delete"):
+        hint = " ↑↓/Tab navigate  Enter edit  Space toggle  F10 save  D delete  Esc cancel  ? help"
+    _safe(stdscr, height - 1, 0, hint[:width - 1].ljust(width - 1))
     stdscr.attroff(curses.color_pair(_P_STATUS))
 
     stdscr.refresh()
@@ -358,7 +393,6 @@ def _form_loop(
     values: dict[str, Any],
     result: list,
 ) -> None:
-    original = {f.key: f.default for f in form.fields}
     current = 0
     scroll = 0
     n = len(form.fields)
@@ -382,11 +416,21 @@ def _form_loop(
             current = (current + 1) % n
         elif key in (curses.KEY_UP, curses.KEY_BTAB):
             current = (current - 1) % n
-        elif key in (curses.KEY_F10, 19):   # F10 or Ctrl+S
+        elif key == curses.KEY_F10:          # F10
             result[0] = values
             return
-        elif key == 27:                      # Esc
-            result[0] = original
+        elif key == 27:                      # Esc or Alt+sequence
+            # Peek for Alt+S (ESC + 's'/'S') = confirm
+            stdscr.nodelay(True)
+            next_key = stdscr.getch()
+            stdscr.nodelay(False)
+            if next_key in (ord('s'), ord('S')):
+                result[0] = values   # Alt+S → confirm
+            else:
+                result[0] = None      # plain Esc → cancel
+            return
+        elif key in (ord('d'), ord('D')) and _has_action(form, "delete"):
+            result[0] = {"__action__": "delete"}
             return
         elif key in (curses.KEY_ENTER, 10, 13):
             field = form.fields[current]
@@ -411,6 +455,9 @@ def _form_loop(
                 values[field.key] = not bool(values[field.key])
             elif field.type == "list":
                 values[field.key] = _list_editor(stdscr, field, values[field.key])
+            elif field.type == "subsection":
+                result[0] = {"__action__": "subsection", "__field__": field.key, "__values__": dict(values)}
+                return
         elif key == ord(' '):
             if form.fields[current].type == "bool":
                 values[form.fields[current].key] = not bool(
@@ -508,6 +555,81 @@ def _summary_loop(
 
 
 # ---------------------------------------------------------------------------
+# Partition section loop
+# ---------------------------------------------------------------------------
+
+def _subsection_loop(
+    stdscr: curses.window,
+    title: str,
+    items: list[tuple[str, dict]],
+    result: list,
+) -> None:
+    selected = 0
+    scroll = 0
+
+    while True:
+        height, width = stdscr.getmaxyx()
+        content_h = height - 2
+        stdscr.clear()
+
+        stdscr.attron(curses.color_pair(_P_TITLE) | curses.A_BOLD)
+        _safe(stdscr, 0, 0, f" {title}".ljust(width))
+        stdscr.attroff(curses.color_pair(_P_TITLE) | curses.A_BOLD)
+
+        rows: list[tuple[str, str]] = []
+        if not items:
+            rows.append(("empty", "(no items yet)"))
+        for idx, (name, data) in enumerate(items):
+            summary = ", ".join(f"{k}={v}" for k, v in data.items()) if data else "(empty)"
+            rows.append(("item", f"{idx + 1}. {name}  {summary}"))
+        rows.append(("add", "+ Add new"))
+        rows.append(("done", "Done"))
+
+        selected = max(0, min(selected, len(rows) - 1))
+        if selected < scroll:
+            scroll = selected
+        elif selected >= scroll + content_h:
+            scroll = selected - content_h + 1
+
+        for i, (kind, text) in enumerate(rows[scroll:scroll + content_h]):
+            row_index = scroll + i
+            row = i + 1
+            active = row_index == selected
+            attr = curses.color_pair(_P_ACTIVE) if active else curses.color_pair(_P_NORMAL)
+            marker = "▶ " if active else "  "
+            stdscr.attron(attr)
+            _safe(stdscr, row, 0, f"{marker}{text}"[:width - 1])
+            stdscr.attroff(attr)
+
+        stdscr.attron(curses.color_pair(_P_STATUS))
+        _safe(stdscr, height - 1, 0,
+              " ↑↓ navigate  Enter select  Esc done"[:width - 1].ljust(width - 1))
+        stdscr.attroff(curses.color_pair(_P_STATUS))
+        stdscr.refresh()
+
+        key = stdscr.getch()
+        if key == curses.KEY_DOWN:
+            selected = min(len(rows) - 1, selected + 1)
+        elif key == curses.KEY_UP:
+            selected = max(0, selected - 1)
+        elif key in (curses.KEY_ENTER, 10, 13):
+            kind, _text = rows[selected]
+            if kind == "item":
+                item_index = sum(1 for k, _ in rows[:selected] if k == "item")
+                result[0] = f"edit:{item_index}"
+            elif kind == "add":
+                result[0] = "add"
+            else:
+                result[0] = "done"
+            return
+        elif key == 27:
+            result[0] = "done"
+            return
+        elif key == curses.KEY_RESIZE:
+            stdscr.clear()
+
+
+# ---------------------------------------------------------------------------
 # Confirm loop
 # ---------------------------------------------------------------------------
 
@@ -554,15 +676,27 @@ def _confirm_loop(stdscr: curses.window, message: str) -> bool:
 
 class CursesBackend(UIBackend):
 
-    def show_form(self, form: FormSpec) -> dict[str, Any]:
+    def show_form(self, form: FormSpec) -> dict[str, Any] | None:
         values = {f.key: f.default for f in form.fields}
-        result = [values]
+        result: list[dict[str, Any] | None] = [values]
 
         def _run(stdscr: curses.window) -> None:
             _setup_colors()
             curses.curs_set(0)
             stdscr.keypad(True)
             _form_loop(stdscr, form, values, result)
+
+        curses.wrapper(_run)
+        return result[0]
+
+    def show_subsection(self, title: str, items: list[tuple[str, dict]]) -> str:
+        result = ["done"]
+
+        def _run(stdscr: curses.window) -> None:
+            _setup_colors()
+            curses.curs_set(0)
+            stdscr.keypad(True)
+            _subsection_loop(stdscr, title, items, result)
 
         curses.wrapper(_run)
         return result[0]

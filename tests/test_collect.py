@@ -36,6 +36,9 @@ class _NoopBackend(UIBackend):
     def show_summary(self, sections):
         return "save_and_exit"
 
+    def show_subsection(self, title, partitions):
+        return "done"
+
     def show_progress(self, phase, message):
         pass
 

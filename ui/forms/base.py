@@ -50,4 +50,6 @@ class SectionForm:
         """
         form = self.build_form(config)
         values = backend.show_form(form)
+        if values is None:
+            return config
         return self.apply(config, values)

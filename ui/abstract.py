@@ -9,9 +9,9 @@ from typing import Any
 class FieldSpec:
     key:      str                    # internal identifier
     label:    str                    # visible label
-    type:     str                    # "text" | "password" | "choice" | "bool" | "list" | "int"
+    type:     str                    # "text" | "password" | "choice" | "bool" | "list" | "int" | "subsection"
     default:  Any                    = None
-    options:  list[str] | None       = field(default=None)   # for type="choice"
+    options:  list[str] | None       = field(default=None)   # for type="choice" or filtered type="list"
     help:     str | None             = field(default=None)   # shown on '?'
     required: bool                   = True
 
@@ -21,15 +21,17 @@ class FormSpec:
     title:    str
     subtitle: str | None
     fields:   list[FieldSpec]
+    actions:  list[tuple[str, str]] | None = None
 
 
 class UIBackend(ABC):
 
     @abstractmethod
-    def show_form(self, form: FormSpec) -> dict[str, Any]:
+    def show_form(self, form: FormSpec) -> dict[str, Any] | None:
         """
         Display the form and return a dict of values keyed by FieldSpec.key.
         Fields that were not modified return their default value.
+        Return None if the user cancels the form.
         """
 
     @abstractmethod
@@ -39,6 +41,14 @@ class UIBackend(ABC):
         Returns the action chosen by the user:
           "install" | "edit:<section_key>" | "save_and_exit"
         """
+
+        @abstractmethod
+        def show_subsection(self, title: str, items: list[tuple[str, dict[str, Any]]]) -> str:
+                """
+                Display an editable subsection with list-like items.
+                Returns one of:
+                    "add" | "done" | "edit:<index>"
+                """
 
     @abstractmethod
     def show_progress(self, phase: str, message: str) -> None:

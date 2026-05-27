@@ -1,6 +1,57 @@
 from __future__ import annotations
 
+import re
+import subprocess
+
 from model.config import GentlyConfig
+
+
+def _parse_size_to_bytes(size_expr: str | None) -> int | None:
+    if not size_expr:
+        return None
+    s = size_expr.strip()
+    if not s or s.endswith("%"):
+        return None
+    m = re.fullmatch(r"(\d+(?:\.\d+)?)\s*([kmgtp]?)(?:i?b)?", s, re.IGNORECASE)
+    if not m:
+        return None
+    num = float(m.group(1))
+    unit = m.group(2).upper()
+    multiplier = {
+        "": 1,
+        "K": 1024,
+        "M": 1024 ** 2,
+        "G": 1024 ** 3,
+        "T": 1024 ** 4,
+        "P": 1024 ** 5,
+    }[unit]
+    return int(num * multiplier)
+
+
+def _parse_size_percent(size_expr: str | None) -> float | None:
+    if not size_expr:
+        return None
+    s = size_expr.strip()
+    m = re.fullmatch(r"(\d+(?:\.\d+)?)\s*%", s)
+    if not m:
+        return None
+    return float(m.group(1))
+
+
+def _disk_size_bytes(device_path: str | None) -> int | None:
+    if not device_path:
+        return None
+    try:
+        out = subprocess.run(
+            ["lsblk", "-b", "-n", "-o", "SIZE", device_path],
+            capture_output=True, text=True, timeout=5,
+        )
+        lines = out.stdout.strip().splitlines()
+        if not lines:
+            return None
+        return int(lines[0].strip())
+    except Exception:
+        return None
 
 
 def validate_coherence(config: GentlyConfig) -> list[str]:
@@ -32,6 +83,48 @@ def validate_coherence(config: GentlyConfig) -> list[str]:
                     f"Disk '{label}' uses boot_mode='uefi' but has {esp_count} "
                     f"ESP partition(s) (exactly 1 required, with flags=[\"esp\"])."
                 )
+
+    # Explicit partition sizes must not exceed disk capacity when capacity is known.
+    for disk in config.disks:
+        percent_total = 0.0
+        allocated = 0
+        for part in disk.partitions:
+            pct = _parse_size_percent(part.size)
+            if pct is not None:
+                percent_total += pct
+                continue
+
+            parsed = _parse_size_to_bytes(part.size)
+            if parsed is None:
+                continue
+            allocated += parsed
+
+        if percent_total > 100.0:
+            label = disk.device or disk.id or "unknown"
+            errors.append(
+                f"Disk '{label}' has percentage partition sizes totaling {percent_total:.2f}%, "
+                "which exceeds 100%."
+            )
+
+        disk_size = _disk_size_bytes(disk.device)
+        if disk_size is None:
+            continue
+
+        if allocated > disk_size:
+            label = disk.device or disk.id or "unknown"
+            errors.append(
+                f"Disk '{label}' has explicit partition sizes totaling {allocated} bytes, "
+                f"which exceeds detected disk size {disk_size} bytes."
+            )
+
+        # Percentage values are interpreted against total disk size.
+        required = allocated + int(disk_size * (percent_total / 100.0))
+        if required > disk_size:
+            label = disk.device or disk.id or "unknown"
+            errors.append(
+                f"Disk '{label}' allocates {allocated} bytes plus {percent_total:.2f}% of disk size, "
+                f"which exceeds detected disk size {disk_size} bytes."
+            )
 
     # distcc: hosts must not be empty when enabled
     if config.distcc and config.distcc.enabled:

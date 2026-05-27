@@ -12,7 +12,7 @@ from ui.curses_backend import CursesBackend
 
 TEST_FORM = FormSpec(
     title="Gently — UI smoke test",
-    subtitle="Navigate with Tab/↑↓, edit with Enter, confirm with F10 or Ctrl+S",
+    subtitle="Navigate with Tab/↑↓, edit with Enter, confirm with F10 or Alt+S",
     fields=[
         FieldSpec(
             key="hostname",
