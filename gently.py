@@ -1,5 +1,6 @@
 import sys
 import os
+from typing import Any
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "vendor"))
 
@@ -33,12 +34,57 @@ FORMS = [
 
 
 def collect(config: GentlyConfig, backend: UIBackend) -> GentlyConfig:
-    for form in FORMS:
-        if form.is_complete(config):
-            backend.show_info("✓", [f"{form.section_name} — configuration complete"])
-        else:
+    forms_by_key = {form.section_key: form for form in FORMS}
+
+    while True:
+        for form in FORMS:
+            if form.is_complete(config):
+                backend.show_info("✓", [f"{form.section_name} — configuration complete"])
+            else:
+                config = form.run(config, backend)
+
+        action = backend.show_summary(_build_summary_sections(config))
+        if action in ("save_and_exit", "install"):
+            return config
+        if action.startswith("edit:"):
+            section_key = action.split(":", 1)[1]
+            form = forms_by_key.get(section_key)
+            if form is None:
+                backend.show_error(f"Unknown section key: {section_key}")
+                continue
             config = form.run(config, backend)
-    return config
+
+
+def _build_summary_sections(config: GentlyConfig) -> list[tuple[str, dict[str, Any]]]:
+    def _as_summary(value: Any) -> Any:
+        if value is None:
+            return None
+        if isinstance(value, list):
+            return [_as_summary(v) for v in value]
+        if hasattr(value, "to_dict"):
+            return _as_summary(value.to_dict())
+        if isinstance(value, dict):
+            result: dict[str, Any] = {}
+            for k, v in value.items():
+                mapped = _as_summary(v)
+                if mapped is not None:
+                    result[k] = mapped
+            return result
+        return value
+
+    sections: list[tuple[str, dict[str, Any]]] = []
+    data = _as_summary(config.to_dict()) or {}
+    if isinstance(data, dict):
+        for key in (
+            "system", "stage3", "disks", "portage", "kernel",
+            "bootloader", "services", "users", "packages", "distcc",
+        ):
+            value = data.get(key)
+            if isinstance(value, dict):
+                sections.append((key, value))
+            elif isinstance(value, list):
+                sections.append((key, {"items": value}))
+    return sections
 
 
 def main() -> None:

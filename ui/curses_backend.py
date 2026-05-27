@@ -482,15 +482,37 @@ def _summary_loop(
 ) -> None:
     section_keys = [k for k, _ in sections]
 
+    def _render_lines(value: Any, indent: int) -> list[str]:
+        pad = "  " * indent
+        if isinstance(value, dict):
+            lines: list[str] = []
+            for k, v in value.items():
+                if isinstance(v, (dict, list)):
+                    lines.append(f"{pad}{k}:")
+                    lines.extend(_render_lines(v, indent + 1))
+                else:
+                    lines.append(f"{pad}{k}: {v}")
+            return lines
+        if isinstance(value, list):
+            lines = []
+            for i, item in enumerate(value, start=1):
+                if isinstance(item, (dict, list)):
+                    lines.append(f"{pad}- item {i}:")
+                    lines.extend(_render_lines(item, indent + 1))
+                else:
+                    lines.append(f"{pad}- {item}")
+            return lines
+        return [f"{pad}{value}"]
+
     # Build flat list of display lines: (type, section_key, text)
     lines: list[tuple[str, str, str]] = []
     for section_key, data in sections:
         lines.append(("header", section_key, section_key))
-        for k, v in data.items():
-            lines.append(("field", section_key, f"  {k}: {v}"))
+        for rendered in _render_lines(data, 1):
+            lines.append(("field", section_key, rendered))
         lines.append(("blank", "", ""))
 
-    actions = [("Install", "install"), ("Edit section", "edit"), ("Save & exit", "save_and_exit")]
+    actions = [("Save", "save_and_exit"), ("Cancel", "cancel")]
     sel = 0
     scroll = 0
 
@@ -536,7 +558,7 @@ def _summary_loop(
             sel = (sel - 1) % len(actions)
         elif key in (curses.KEY_ENTER, 10, 13):
             action_key = actions[sel][1]
-            if action_key == "edit" and section_keys:
+            if action_key == "cancel" and section_keys:
                 chosen = _choice_popup(
                     stdscr,
                     FieldSpec(key="_sec", label="Select section to edit",
@@ -548,7 +570,16 @@ def _summary_loop(
                 result[0] = action_key
             return
         elif key == 27:
-            result[0] = "save_and_exit"
+            if section_keys:
+                chosen = _choice_popup(
+                    stdscr,
+                    FieldSpec(key="_sec", label="Select section to edit",
+                              type="choice", options=section_keys),
+                    section_keys[0],
+                )
+                result[0] = f"edit:{chosen}"
+            else:
+                result[0] = "save_and_exit"
             return
         elif key == curses.KEY_RESIZE:
             stdscr.clear()

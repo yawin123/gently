@@ -39,7 +39,7 @@ class UIBackend(ABC):
         """
         Display the full configuration summary.
         Returns the action chosen by the user:
-          "install" | "edit:<section_key>" | "save_and_exit"
+                    "save_and_exit" | "edit:<section_key>"
         """
 
         @abstractmethod
