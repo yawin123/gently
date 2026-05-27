@@ -1,5 +1,6 @@
 import sys
 import os
+from datetime import datetime
 from typing import Any
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "vendor"))
@@ -92,6 +93,13 @@ def main() -> None:
     config = load_config("config.toml")
     config = collect(config, backend)
     save_config(config, "config.toml")
+
+    # Always persist a timestamped copy.
+    saves_dir = os.path.join(os.path.dirname(__file__), "saves")
+    os.makedirs(saves_dir, exist_ok=True)
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    save_config(config, os.path.join(saves_dir, f"gently_{ts}.toml"))
+
     errors = validate_coherence(config)
     if errors:
         backend.show_error("\n".join(errors))

@@ -3,6 +3,8 @@ from __future__ import annotations
 import shlex
 import subprocess
 import time
+import os
+import shutil
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Callable
@@ -148,7 +150,9 @@ class SshRunner(Runner):
 		dry_run: bool = False,
 		port: int | None = None,
 		identity_file: str | None = None,
+		password: str | None = None,
 		control_path: str = "/tmp/gently-ssh-%r@%h:%p",
+		verify_host_key: bool = False,
 		extra_ssh_options: list[str] | None = None,
 		run_impl: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
 	):
@@ -156,7 +160,9 @@ class SshRunner(Runner):
 		self.target = target
 		self.port = port
 		self.identity_file = identity_file
+		self.password = password
 		self.control_path = control_path
+		self.verify_host_key = verify_host_key
 		self.extra_ssh_options = list(extra_ssh_options or [])
 		self._run_impl = run_impl
 		self._session_started = False
@@ -172,6 +178,12 @@ class SshRunner(Runner):
 			"-o", "ControlPersist=600",
 			"-o", f"ControlPath={self.control_path}",
 		]
+		if not self.verify_host_key:
+			opts += [
+				"-o", "StrictHostKeyChecking=no",
+				"-o", "UserKnownHostsFile=/dev/null",
+				"-o", "GlobalKnownHostsFile=/dev/null",
+			]
 		if self.port is not None:
 			opts += ["-p", str(self.port)]
 		if self.identity_file:
@@ -179,11 +191,23 @@ class SshRunner(Runner):
 		opts += self.extra_ssh_options
 		return opts
 
+	def _with_auth(self, base_cmd: list[str]) -> tuple[list[str], dict[str, str] | None]:
+		if self.password is None:
+			return base_cmd, None
+		if shutil.which("sshpass") is None:
+			raise RunnerError(
+				"SSH password mode requires 'sshpass', which is not installed. "
+				"Use SSH keys or install sshpass in the execution environment."
+			)
+		env = os.environ.copy()
+		env["SSHPASS"] = self.password
+		return ["sshpass", "-e", *base_cmd], env
+
 	def ensure_session(self) -> None:
 		if self._session_started or self.dry_run:
 			return
-		cmd = ["ssh", *self._ssh_opts(), "-MNf", self.target]
-		cp = self._run_impl(cmd, capture_output=True, text=True, check=False)
+		cmd, env = self._with_auth(["ssh", *self._ssh_opts(), "-MNf", self.target])
+		cp = self._run_impl(cmd, env=env, capture_output=True, text=True, check=False)
 		if cp.returncode != 0:
 			raise RunnerError(
 				f"Failed to open SSH control session to {self.target}: {cp.stderr.strip()}"
@@ -193,8 +217,8 @@ class SshRunner(Runner):
 	def close(self) -> None:
 		if not self._session_started or self.dry_run:
 			return
-		cmd = ["ssh", *self._ssh_opts(), "-O", "exit", self.target]
-		self._run_impl(cmd, capture_output=True, text=True, check=False)
+		cmd, env = self._with_auth(["ssh", *self._ssh_opts(), "-O", "exit", self.target])
+		self._run_impl(cmd, env=env, capture_output=True, text=True, check=False)
 		self._session_started = False
 
 	def __enter__(self) -> SshRunner:
@@ -220,12 +244,14 @@ class SshRunner(Runner):
 		remote_cmd = core if not prelude else " && ".join([*prelude, core])
 		ssh_cmd = [
 			"ssh", *self._ssh_opts(), self.target,
-			"bash", "-lc", remote_cmd,
+			remote_cmd,
 		]
+		ssh_cmd, env = self._with_auth(ssh_cmd)
 
 		started = time.time()
 		cp = self._run_impl(
 			ssh_cmd,
+			env=env,
 			input=spec.input_text,
 			capture_output=True,
 			text=True,
@@ -247,6 +273,7 @@ def build_runner(
 	dry_run: bool = False,
 	port: int | None = None,
 	identity_file: str | None = None,
+	ssh_password: str | None = None,
 ) -> Runner:
 	if target == "local":
 		return LocalRunner(dry_run=dry_run)
@@ -256,6 +283,7 @@ def build_runner(
 			dry_run=dry_run,
 			port=port,
 			identity_file=identity_file,
+			password=ssh_password,
 		)
 	raise RunnerError(
 		f"Unknown target {target!r}. Expected 'local' or 'ssh:user@host'."
@@ -302,12 +330,15 @@ class InstallPhaseError(RunnerError):
 		super().__init__(f"Install phase '{phase_key}' failed: {cause}")
 
 
+def _placeholder(_config: Any, _runner: Runner) -> None:
+	return None
+
+
 def default_install_phases() -> list[InstallPhase]:
-	def _placeholder(_config: Any, _runner: Runner) -> None:
-		return None
+	from installer.preflight import execute as preflight_execute
 
 	return [
-		InstallPhase("preflight", "Preflight", _placeholder),
+		InstallPhase("preflight", "Preflight", preflight_execute),
 		InstallPhase("partition", "Partition", _placeholder),
 		InstallPhase("stage3", "Stage3", _placeholder),
 		InstallPhase("portage", "Portage", _placeholder),
@@ -325,14 +356,20 @@ def run_installation(
 	runner: Runner,
 	phases: list[InstallPhase] | None = None,
 	progress_cb: Callable[[str, str], None] | None = None,
+	backend: Any = None,
 ) -> InstallationReport:
 	selected = phases if phases is not None else default_install_phases()
 	report = InstallationReport()
+
+	if backend is not None:
+		backend.install_progress_begin([p.key for p in selected])
 
 	for phase in selected:
 		started = time.time()
 		if progress_cb:
 			progress_cb(phase.key, f"Starting {phase.title}")
+		if backend is not None:
+			backend.install_progress_update(phase.key, f"Starting {phase.title}")
 		try:
 			phase.execute(config, runner)
 			phase_result = InstallPhaseResult(
@@ -344,6 +381,8 @@ def run_installation(
 			report.phases.append(phase_result)
 			if progress_cb:
 				progress_cb(phase.key, f"Completed {phase.title}")
+			if backend is not None:
+				backend.install_progress_update(phase.key, f"Completed {phase.title}")
 		except Exception as exc:
 			phase_result = InstallPhaseResult(
 				key=phase.key,
@@ -355,11 +394,20 @@ def run_installation(
 			report.phases.append(phase_result)
 			if progress_cb:
 				progress_cb(phase.key, f"Failed {phase.title}: {exc}")
+			if backend is not None:
+				backend.install_progress_update(phase.key, f"FAILED: {exc}")
+				try:
+					backend.install_progress_end(report)
+				except Exception:
+					pass
 			raise InstallPhaseError(
 				phase_key=phase.key,
 				phase_title=phase.title,
 				cause=exc,
 				partial_report=report,
 			) from exc
+
+	if backend is not None:
+		backend.install_progress_end(report)
 
 	return report

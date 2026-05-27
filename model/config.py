@@ -92,6 +92,8 @@ class Stage3Config:
     mirror:             str | None = field(default=None)
     local_path:         str | None = field(default=None)
     tarball_url:        str | None = field(default=None)
+    signature_url:      str | None = field(default=None)
+    signature_path:     str | None = field(default=None)
     verify_signature:   bool       = True
 
     def to_dict(self) -> dict:
@@ -364,6 +366,8 @@ def _load_stage3(raw: dict) -> Stage3Config | None:
         mirror=_expect_type(s.get("mirror"), str, "stage3.mirror"),
         local_path=_expect_type(s.get("local_path"), str, "stage3.local_path"),
         tarball_url=_expect_type(s.get("tarball_url"), str, "stage3.tarball_url"),
+        signature_url=_expect_type(s.get("signature_url"), str, "stage3.signature_url"),
+        signature_path=_expect_type(s.get("signature_path"), str, "stage3.signature_path"),
         verify_signature=s.get("verify_signature", True),
     )
 

@@ -23,40 +23,24 @@ class BootloaderForm(SectionForm):
         b = config.bootloader or BootloaderConfig()
         grub = b.grub or BootloaderGrubConfig()
         return FormSpec(
-            title="Bootloader",
-            subtitle="GRUB fields are only used when type=grub",
+            title="form_bootloader_title",
+            subtitle="form_bootloader_subtitle",
             fields=[
-                FieldSpec(
-                    key="type",
-                    label="Bootloader type",
-                    type="choice",
-                    default=b.type or "grub",
-                    options=_TYPES,
-                    help="grub: install GRUB2  |  none: skip bootloader installation",
-                ),
-                FieldSpec(
-                    key="grub_install_disk",
-                    label="GRUB install disk",
-                    type="text",
-                    default=grub.install_disk,
-                    required=False,
-                    help="Disk to install GRUB to, e.g. /dev/sda (blank = auto-detect)",
-                ),
-                FieldSpec(
-                    key="grub_timeout",
-                    label="GRUB timeout (s)",
-                    type="int",
-                    default=grub.timeout if grub.timeout is not None else 5,
-                    required=False,
-                ),
-                FieldSpec(
-                    key="grub_cmdline_extra",
-                    label="Extra kernel params",
-                    type="list",
-                    default=list(grub.cmdline_extra) if grub.cmdline_extra else None,
-                    required=False,
-                    help="Extra parameters appended to the kernel command line",
-                ),
+                FieldSpec(key="type", label="Bootloader type", i18n_key="form_bootloader_type_label",
+                          type="choice", default=b.type or "grub", options=_TYPES,
+                          help="form_bootloader_type_help"),
+                FieldSpec(key="grub_install_disk", label="GRUB install disk",
+                          i18n_key="form_bootloader_grub_install_disk_label",
+                          type="text", default=grub.install_disk, required=False,
+                          help="form_bootloader_grub_install_disk_help"),
+                FieldSpec(key="grub_timeout", label="GRUB timeout (s)",
+                          i18n_key="form_bootloader_grub_timeout_label",
+                          type="int", default=grub.timeout if grub.timeout is not None else 5,
+                          required=False),
+                FieldSpec(key="grub_cmdline_extra", label="Extra kernel params",
+                          i18n_key="form_bootloader_extra_params_label",
+                          type="list", default=list(grub.cmdline_extra) if grub.cmdline_extra else None,
+                          required=False, help="form_bootloader_extra_params_help"),
             ],
         )
 

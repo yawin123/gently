@@ -1,0 +1,78 @@
+# Gently demo config for VM at 192.168.30.81
+# Disk: /dev/sda 8GB — GPT + UEFI
+# CPU: 1 core i5-11320H — binary kernel recommended
+# RAM: ~946 MB
+
+[system]
+hostname = "gently-vm"
+timezone = "Europe/Madrid"
+locale   = "es_ES.UTF-8"
+locales  = ["es_ES.UTF-8 UTF-8", "en_US.UTF-8 UTF-8"]
+keymap   = "es"
+lang     = "es_ES.UTF-8"
+
+[stage3]
+arch    = "amd64"
+variant = "openrc"
+mirror  = "https://distfiles.gentoo.org"
+
+[[disks]]
+id              = "primary"
+device          = "/dev/sda"
+partition_table = "gpt"
+boot_mode       = "uefi"
+
+[[disks.partitions]]
+label      = "esp"
+size       = "128M"
+filesystem = "vfat"
+mount      = "/boot/efi"
+flags      = ["esp"]
+
+[[disks.partitions]]
+label      = "swap"
+size       = "512M"
+filesystem = "swap"
+
+[[disks.partitions]]
+label         = "root"
+size          = "remaining"
+filesystem    = "ext4"
+mount         = "/"
+mount_options = "noatime"
+
+[portage]
+cflags          = "-O2 -pipe -march=x86-64-v3"
+cxxflags        = "-O2 -pipe -march=x86-64-v3"
+makeopts        = "-j1"
+use             = ["-bluetooth", "-cups", "-X"]
+accept_keywords = "amd64"
+accept_license  = "@FREE"
+
+[portage.profile]
+name = "default/linux/amd64/23.0"
+
+[kernel]
+method = "binary"
+
+[bootloader]
+type = "grub"
+
+[bootloader.grub]
+platforms = ["efi-64"]
+timeout   = 5
+
+[services.roles]
+network = "NetworkManager"
+ssh     = "openssh"
+cron    = "cronie"
+logging = "sysklogd"
+ntp     = "chrony"
+
+[[users.accounts]]
+name   = "gently"
+groups = ["wheel", "audio", "video", "usb", "plugdev"]
+shell  = "/bin/bash"
+
+[users]
+credentials_file = "credentials.toml"

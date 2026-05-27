@@ -1,0 +1,99 @@
+id,es_ES
+form_system_title,"Configuración del sistema"
+form_system_subtitle,"Nombre de máquina, zona horaria y configuración regional"
+form_system_hostname_label,"Nombre de máquina"
+form_system_hostname_help,"Nombre de la máquina, ej. micaja"
+form_system_timezone_label,"Zona horaria"
+form_system_timezone_help,"Lista completa: ls /usr/share/zoneinfo"
+form_system_locale_label,Locale
+form_system_locale_help,"Locale principal (también usado en /etc/locale.gen)"
+form_system_extra_locales_label,"Locales adicionales"
+form_system_extra_locales_help,"Locales adicionales a generar (opcional)"
+form_system_keymap_label,"Mapa de teclado"
+form_system_keymap_help,"Mapa de teclado de consola (vconsole)"
+form_system_lang_label,LANG
+form_system_lang_help,"Valor para la variable de entorno LANG"
+form_stage3_title,"Tarball Stage3"
+form_stage3_subtitle,"Arquitectura, variante y origen del tarball base del sistema"
+form_stage3_arch_label,Arquitectura
+form_stage3_variant_label,Variante
+form_stage3_variant_help,"Sistema de inicio incluido en el tarball stage3"
+form_stage3_mirror_label,"URL del mirror"
+form_stage3_mirror_help,"Mirror de distfiles — Gently descarga el último tarball automáticamente"
+form_stage3_local_path_label,"Ruta local del tarball"
+form_stage3_local_path_help,"Ruta a un tarball stage3 descargado localmente"
+form_stage3_tarball_url_label,"URL del tarball"
+form_stage3_tarball_url_help,"URL directa a un tarball stage3 específico"
+form_stage3_verify_sig_label,"Verificar firma"
+form_stage3_verify_sig_help,"Verificar la firma GPG del tarball antes de extraerlo"
+form_stage3_sig_url_label,"URL de la firma"
+form_stage3_sig_url_help,"URL al archivo .asc de firma (solo necesario con tarball_url)"
+form_stage3_sig_path_label,"Ruta de la firma"
+form_stage3_sig_path_help,"Ruta local al archivo .asc de firma (solo necesario con local_path)"
+form_disk_disk_title,"Disco — configuración"
+form_disk_disk_subtitle,"v1: solo se admite un disco"
+form_disk_device_label,Dispositivo
+form_disk_device_help,"Disco de destino para la instalación. El tamaño se muestra en el selector."
+form_disk_partition_table_label,"Tabla de particiones"
+form_disk_partition_table_help,"gpt se recomienda para sistemas UEFI modernos. msdos es estilo legacy/BIOS."
+form_disk_boot_mode_label,"Modo de arranque"
+form_disk_boot_mode_help,"Selecciona el modo de arranque del firmware para este destino de instalación."
+form_disk_confirm_wipe_label,"Confirmar antes de borrar"
+form_disk_confirm_wipe_help,"Solicitar confirmación antes de borrar el disco"
+form_disk_partitions_label,Particiones
+form_disk_partitions_help,"Pulsa Enter para abrir la lista de particiones, después añade/edita/elimina entradas."
+form_disk_partition_action_save,Guardar
+form_disk_partition_action_cancel,Cancelar
+form_disk_partition_action_delete,Eliminar
+form_disk_partition_size_help_base,"ej. 512M, 32G, 100%. Los porcentajes son del tamaño total del disco."
+form_disk_partition_title,"Disco — partición {n}"
+form_disk_partition_label_label,Etiqueta
+form_disk_partition_label_help,"Etiqueta de la partición, ej. boot, root, swap"
+form_disk_partition_size_label,Tamaño
+form_disk_partition_fs_label,"Sistema de archivos"
+form_disk_partition_fs_help,"Usa swap para particiones swap, vfat para EFI, ext4 como opción común."
+form_disk_partition_mount_label,"Punto de montaje"
+form_disk_partition_mount_help,"ej. /boot/efi, /, /home  (vacío para swap)"
+form_disk_partition_mount_opts_label,"Opciones de montaje"
+form_disk_partition_mount_opts_help,"Opciones opcionales separadas por comas, ej. noatime,nodiratime."
+form_disk_partition_flags_label,Flags
+form_portage_title,"Configuración de Portage"
+form_portage_subtitle,"Flags del compilador, flags USE y perfil"
+form_kernel_title,"Configuración del kernel"
+form_kernel_method_label,"Método de construcción"
+form_kernel_method_help,"genkernel: automatizado  |  dist-kernel: binario  |  menuconfig/custom: manual (config_path requerido)"
+form_bootloader_title,"Gestor de arranque"
+form_bootloader_type_label,"Tipo de bootloader"
+form_services_title,Servicios
+form_services_subtitle,"Selecciona el demonio para cada rol del sistema (none = no instalar)"
+form_services_network_label,"Gestor de red"
+form_services_cron_label,"Demonio cron"
+form_services_logging_label,"Demonio de registro"
+form_services_ssh_label,"Servidor SSH"
+form_services_ntp_label,"Demonio NTP"
+form_users_title,Usuarios
+form_users_subtitle,"Autenticación de root y usuarios locales adicionales"
+form_users_root_password_label,"Contraseña de root"
+form_users_root_password_confirm_label,"Confirmar contraseña de root"
+form_users_accounts_label,"Cuentas de usuario"
+form_users_account_name_label,"Nombre de usuario"
+form_users_account_password_label,Contraseña
+form_users_account_password_confirm_label,"Confirmar contraseña"
+form_users_account_groups_label,Grupos
+form_users_account_shell_label,Shell
+form_packages_title,"Paquetes adicionales"
+form_packages_subtitle,"Paquetes adicionales a instalar después del sistema base"
+form_distcc_title,"distcc (compilación distribuida)"
+form_distcc_subtitle,"Deja enabled=no para omitir distcc por completo"
+form_distcc_enabled_label,"Habilitar distcc"
+form_distcc_hosts_label,Hosts
+ui_help_popup_title,Ayuda
+ui_summary_title," Resumen de configuración"
+ui_form_hint_default," ↑↓/Tab navegar  Enter editar  Espacio cambiar  F2 idioma  F10/Alt+S guardar  Esc cancelar  ? ayuda"
+ui_form_hint_with_delete," ↑↓/Tab navegar  Enter editar  Espacio cambiar  F2 idioma  F10 guardar  D eliminar  Esc cancelar  ? ayuda"
+ui_choice_popup_hint," ↑↓/PgUp/PgDn navegar  Enter elegir  Esc cancelar"
+ui_list_editor_hint," ↑↓ navegar  A añadir  D eliminar  F10/Alt+S confirmar  Esc cancelar"
+ui_summary_hint," ↑↓ mover  ←→/Tab acción  F2 idioma  Enter confirmar"
+ui_subsection_hint," ↑↓ navegar  Enter elegir  F2 idioma  Esc salir"
+summary_mark_complete,✓
+summary_section_complete_message,"{section_name} — configuración completa"

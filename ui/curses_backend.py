@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import curses
 import curses.ascii
+import sys
 from typing import Any
 
 from ui.abstract import UIBackend, FormSpec, FieldSpec
@@ -120,7 +121,7 @@ def _inline_editor(
 # Choice popup
 # ---------------------------------------------------------------------------
 
-def _choice_popup(stdscr: curses.window, field: FieldSpec, current: Any) -> Any:
+def _choice_popup(stdscr: curses.window, field: FieldSpec, current: Any, backend: UIBackend) -> Any:
     if not field.options:
         return current
     options = field.options
@@ -161,7 +162,7 @@ def _choice_popup(stdscr: curses.window, field: FieldSpec, current: Any) -> Any:
             win.attroff(attr)
 
         _safe(win, box_h - 1, 1,
-              " ↑↓/PgUp/PgDn navigate  Enter select  Esc cancel"[:box_w - 2],
+              backend.translate("ui_choice_popup_hint")[:box_w - 2],
               curses.color_pair(_P_STATUS))
         win.refresh()
 
@@ -194,7 +195,7 @@ def _prompt_line(stdscr: curses.window, row: int, prompt: str) -> str | None:
     return _inline_editor(stdscr, row, len(prompt), fw, "", False)
 
 
-def _list_editor(stdscr: curses.window, field: FieldSpec, current: list | None) -> list | None:
+def _list_editor(stdscr: curses.window, field: FieldSpec, current: list | None, backend: UIBackend) -> list | None:
     items = list(current) if current else []
     sel = 0
 
@@ -215,7 +216,7 @@ def _list_editor(stdscr: curses.window, field: FieldSpec, current: list | None) 
             _safe(stdscr, i + 2, 0, f"{marker}{item}"[:width - 1])
             stdscr.attroff(attr)
 
-        hint = " ↑↓ navigate  A add  D delete  F10/Alt+S confirm  Esc cancel"
+        hint = backend.translate("ui_list_editor_hint")
         stdscr.attron(curses.color_pair(_P_STATUS))
         _safe(stdscr, height - 1, 0, hint[:width - 1].ljust(width - 1))
         stdscr.attroff(curses.color_pair(_P_STATUS))
@@ -239,7 +240,7 @@ def _list_editor(stdscr: curses.window, field: FieldSpec, current: list | None) 
                     options=available,
                     help=field.help,
                 )
-                new = _choice_popup(stdscr, add_field, available[0])
+                new = _choice_popup(stdscr, add_field, available[0], backend)
                 if new and new not in items:
                     insert_at = sel + 1 if items else 0
                     items.insert(insert_at, new)
@@ -303,20 +304,34 @@ def _popup(stdscr: curses.window, title: str, lines: list[str], error: bool = Fa
 # Form layout helpers
 # ---------------------------------------------------------------------------
 
-def _layout(form: FormSpec, width: int) -> tuple[int, int]:
+def _layout(form: FormSpec, width: int, values: dict[str, Any] | None = None) -> tuple[int, int]:
     """Return (label_w, value_w) for the given terminal width."""
-    label_w = max(len(f.label) for f in form.fields) + 4  # "▶ " + label + " "
-    value_w = max(width - label_w - 2, 10)                # "[" + value + "]"
+    fields = _visible_fields(form, values)
+    label_w = max(len(f.label) for f in fields) + 4 if fields else 20
+    value_w = max(width - label_w - 2, 10)
     return label_w, value_w
+
+
+def _visible_fields(form: FormSpec, values: dict[str, Any] | None) -> list[FieldSpec]:
+    if values is None:
+        return [f for f in form.fields if f.visible_when is None]
+    result = []
+    for f in form.fields:
+        if f.visible_when is not None:
+            cond_key, cond_val = f.visible_when
+            if values.get(cond_key) != cond_val:
+                continue
+        result.append(f)
+    return result
 
 
 def _header_rows(form: FormSpec) -> int:
     return 1 + (1 if form.subtitle else 0) + 1  # title [+ subtitle] + blank
 
 
-def _value_pos(form: FormSpec, field_idx: int, scroll: int, width: int) -> tuple[int, int, int]:
+def _value_pos(form: FormSpec, field_idx: int, scroll: int, width: int, values: dict[str, Any] | None = None) -> tuple[int, int, int]:
     """Return (row, col, field_width) for the value input area of a field."""
-    label_w, value_w = _layout(form, width)
+    label_w, value_w = _layout(form, width, values)
     row = _header_rows(form) + (field_idx - scroll)
     col = label_w + 1          # skip "["
     fw  = max(value_w - 2, 5)  # inside the brackets
@@ -339,30 +354,36 @@ def _draw_form(
     values: dict[str, Any],
     current: int,
     scroll: int,
+    backend: UIBackend,
 ) -> None:
     height, width = stdscr.getmaxyx()
     stdscr.clear()
-    label_w, value_w = _layout(form, width)
+    visible = _visible_fields(form, values)
+    label_w, value_w = _layout(form, width, values)
     hr = _header_rows(form)
 
-    # Title
+    # Title — translate at render time so F2 language switch works.
+    title_text = backend.translate(form.title) if form.title else ""
     stdscr.attron(curses.color_pair(_P_TITLE) | curses.A_BOLD)
-    _safe(stdscr, 0, 0, f" {form.title}".ljust(width))
+    _safe(stdscr, 0, 0, f" {title_text}".ljust(width))
     stdscr.attroff(curses.color_pair(_P_TITLE) | curses.A_BOLD)
 
     row = 1
     if form.subtitle:
-        _safe(stdscr, row, 1, form.subtitle[:width - 2])
+        subtitle_text = backend.translate(form.subtitle)
+        _safe(stdscr, row, 1, subtitle_text[:width - 2])
         row += 1
     row += 1  # blank separator
 
     visible_count = height - hr - 1
-    for rel, field in enumerate(form.fields[scroll:scroll + visible_count]):
+    for rel, field in enumerate(visible[scroll:scroll + visible_count]):
         abs_idx = scroll + rel
         active = abs_idx == current
         marker = "▶ " if active else "  "
         val_str = _fmt(field, values.get(field.key))
-        label_part = f"{marker}{field.label}"
+        # Translate label at render time.
+        label_text = backend.translate(field.i18n_key or field.key) if field.i18n_key else field.label
+        label_part = f"{marker}{label_text}"
         val_display = val_str[:value_w - 2]
 
         attr = curses.color_pair(_P_ACTIVE) if active else curses.color_pair(_P_NORMAL)
@@ -374,9 +395,9 @@ def _draw_form(
 
     # Status bar
     stdscr.attron(curses.color_pair(_P_STATUS))
-    hint = " ↑↓/Tab navigate  Enter edit  Space toggle  F10/Alt+S save  Esc cancel  ? help"
+    hint = backend.translate("ui_form_hint_default")
     if _has_action(form, "delete"):
-        hint = " ↑↓/Tab navigate  Enter edit  Space toggle  F10 save  D delete  Esc cancel  ? help"
+        hint = backend.translate("ui_form_hint_with_delete")
     _safe(stdscr, height - 1, 0, hint[:width - 1].ljust(width - 1))
     stdscr.attroff(curses.color_pair(_P_STATUS))
 
@@ -392,30 +413,40 @@ def _form_loop(
     form: FormSpec,
     values: dict[str, Any],
     result: list,
+    backend: UIBackend,
 ) -> None:
     current = 0
     scroll = 0
-    n = len(form.fields)
+    visible = _visible_fields(form, values)
+    n = len(visible)
 
     while True:
         height, width = stdscr.getmaxyx()
         hr = _header_rows(form)
-        visible = height - hr - 1
+        visible = _visible_fields(form, values)
+        n = len(visible)
+        max_visible = height - hr - 1
 
         # Keep current field in view
         if current < scroll:
             scroll = current
-        elif current >= scroll + visible:
-            scroll = current - visible + 1
+        elif current >= scroll + max_visible:
+            scroll = current - max_visible + 1
         scroll = max(0, scroll)
 
-        _draw_form(stdscr, form, values, current, scroll)
-        key = stdscr.getch()
+        _draw_form(stdscr, form, values, current, scroll, backend)
+        try:
+            key = stdscr.getch()
+        except KeyboardInterrupt:
+            backend.interrupt()
+            return
 
         if key in (curses.KEY_DOWN, ord('\t')):
             current = (current + 1) % n
         elif key in (curses.KEY_UP, curses.KEY_BTAB):
             current = (current - 1) % n
+        elif key == curses.KEY_F2:
+            _cycle_language(stdscr, backend)
         elif key == curses.KEY_F10:          # F10
             result[0] = values
             return
@@ -433,9 +464,9 @@ def _form_loop(
             result[0] = {"__action__": "delete"}
             return
         elif key in (curses.KEY_ENTER, 10, 13):
-            field = form.fields[current]
+            field = visible[current]
             height, width = stdscr.getmaxyx()
-            row, col, fw = _value_pos(form, current, scroll, width)
+            row, col, fw = _value_pos(form, current, scroll, width, values)
 
             if field.type in ("text", "int", "password"):
                 initial = str(values[field.key]) if values[field.key] is not None else ""
@@ -450,23 +481,24 @@ def _form_loop(
                     else:
                         values[field.key] = new or None
             elif field.type == "choice":
-                values[field.key] = _choice_popup(stdscr, field, values[field.key])
+                values[field.key] = _choice_popup(stdscr, field, values[field.key], backend)
             elif field.type == "bool":
                 values[field.key] = not bool(values[field.key])
             elif field.type == "list":
-                values[field.key] = _list_editor(stdscr, field, values[field.key])
+                values[field.key] = _list_editor(stdscr, field, values[field.key], backend)
             elif field.type == "subsection":
                 result[0] = {"__action__": "subsection", "__field__": field.key, "__values__": dict(values)}
                 return
         elif key == ord(' '):
-            if form.fields[current].type == "bool":
-                values[form.fields[current].key] = not bool(
-                    values[form.fields[current].key]
+            if visible[current].type == "bool":
+                values[visible[current].key] = not bool(
+                    values[visible[current].key]
                 )
         elif key == ord('?'):
-            field = form.fields[current]
+            field = visible[current]
             if field.help:
-                _popup(stdscr, "Help", field.help.split('\n'))
+                help_text = backend.translate(field.help)
+                _popup(stdscr, backend.translate("ui_help_popup_title"), help_text.split('\n'))
         elif key == curses.KEY_RESIZE:
             stdscr.clear()
 
@@ -479,6 +511,7 @@ def _summary_loop(
     stdscr: curses.window,
     sections: list[tuple[str, dict]],
     result: list,
+    backend: UIBackend,
 ) -> None:
     section_keys = [k for k, _ in sections]
 
@@ -512,17 +545,25 @@ def _summary_loop(
             lines.append(("field", section_key, rendered))
         lines.append(("blank", "", ""))
 
-    actions = [("Save", "save_and_exit"), ("Cancel", "cancel")]
+    actions = [
+        (backend.translate("ui_summary_action_save"), "save_and_exit"),
+        (backend.translate("ui_summary_action_cancel"), "cancel"),
+    ]
     sel = 0
     scroll = 0
 
     while True:
+        # Rebuild actions inside the loop so they are re-translated on F2.
+        actions = [
+            (backend.translate("ui_summary_action_save"), "save_and_exit"),
+            (backend.translate("ui_summary_action_cancel"), "cancel"),
+        ]
         height, width = stdscr.getmaxyx()
         content_h = height - 3
         stdscr.clear()
 
         stdscr.attron(curses.color_pair(_P_TITLE) | curses.A_BOLD)
-        _safe(stdscr, 0, 0, " Configuration Summary".ljust(width))
+        _safe(stdscr, 0, 0, backend.translate("ui_summary_title").ljust(width))
         stdscr.attroff(curses.color_pair(_P_TITLE) | curses.A_BOLD)
 
         for i, (ltype, _lkey, ltext) in enumerate(lines[scroll:scroll + content_h]):
@@ -542,16 +583,23 @@ def _summary_loop(
             col += len(label) + 4
 
         stdscr.attron(curses.color_pair(_P_STATUS))
+        hint = backend.translate("ui_summary_hint")
         _safe(stdscr, height - 1, 0,
-              " ↑↓ scroll  ←→/Tab action  Enter confirm"[:width - 1].ljust(width - 1))
+              hint[:width - 1].ljust(width - 1))
         stdscr.attroff(curses.color_pair(_P_STATUS))
         stdscr.refresh()
 
-        key = stdscr.getch()
+        try:
+            key = stdscr.getch()
+        except KeyboardInterrupt:
+            backend.interrupt()
+            return
         if key == curses.KEY_DOWN:
             scroll = min(scroll + 1, max(0, len(lines) - content_h))
         elif key == curses.KEY_UP:
             scroll = max(0, scroll - 1)
+        elif key == curses.KEY_F2:
+            _cycle_language(stdscr, backend)
         elif key in (curses.KEY_RIGHT, ord('\t')):
             sel = (sel + 1) % len(actions)
         elif key in (curses.KEY_LEFT, curses.KEY_BTAB):
@@ -564,6 +612,7 @@ def _summary_loop(
                     FieldSpec(key="_sec", label="Select section to edit",
                               type="choice", options=section_keys),
                     section_keys[0],
+                    backend,
                 )
                 result[0] = f"edit:{chosen}"
             else:
@@ -576,6 +625,7 @@ def _summary_loop(
                     FieldSpec(key="_sec", label="Select section to edit",
                               type="choice", options=section_keys),
                     section_keys[0],
+                    backend,
                 )
                 result[0] = f"edit:{chosen}"
             else:
@@ -594,6 +644,7 @@ def _subsection_loop(
     title: str,
     items: list[tuple[str, dict]],
     result: list,
+    backend: UIBackend,
 ) -> None:
     selected = 0
     scroll = 0
@@ -609,12 +660,12 @@ def _subsection_loop(
 
         rows: list[tuple[str, str]] = []
         if not items:
-            rows.append(("empty", "(no items yet)"))
+            rows.append(("empty", backend.translate("ui_subsection_no_items")))
         for idx, (name, data) in enumerate(items):
             summary = ", ".join(f"{k}={v}" for k, v in data.items()) if data else "(empty)"
             rows.append(("item", f"{idx + 1}. {name}  {summary}"))
-        rows.append(("add", "+ Add new"))
-        rows.append(("done", "Done"))
+        rows.append(("add", backend.translate("ui_subsection_add_new")))
+        rows.append(("done", backend.translate("ui_subsection_done")))
 
         selected = max(0, min(selected, len(rows) - 1))
         if selected < scroll:
@@ -633,16 +684,23 @@ def _subsection_loop(
             stdscr.attroff(attr)
 
         stdscr.attron(curses.color_pair(_P_STATUS))
+        hint = backend.translate("ui_subsection_hint")
         _safe(stdscr, height - 1, 0,
-              " ↑↓ navigate  Enter select  Esc done"[:width - 1].ljust(width - 1))
+              hint[:width - 1].ljust(width - 1))
         stdscr.attroff(curses.color_pair(_P_STATUS))
         stdscr.refresh()
 
-        key = stdscr.getch()
+        try:
+            key = stdscr.getch()
+        except KeyboardInterrupt:
+            backend.interrupt()
+            return
         if key == curses.KEY_DOWN:
             selected = min(len(rows) - 1, selected + 1)
         elif key == curses.KEY_UP:
             selected = max(0, selected - 1)
+        elif key == curses.KEY_F2:
+            _cycle_language(stdscr, backend)
         elif key in (curses.KEY_ENTER, 10, 13):
             kind, _text = rows[selected]
             if kind == "item":
@@ -658,6 +716,25 @@ def _subsection_loop(
             return
         elif key == curses.KEY_RESIZE:
             stdscr.clear()
+
+
+# ---------------------------------------------------------------------------
+# Language switching
+# ---------------------------------------------------------------------------
+
+def _cycle_language(stdscr: curses.window, backend: UIBackend) -> None:
+    langs = backend.available_languages()
+    if len(langs) < 2:
+        return
+    current = backend.current_language()
+    chosen = _choice_popup(
+        stdscr,
+        FieldSpec(key="lang", label="Language", type="choice", options=langs),
+        current,
+        backend,
+    )
+    if chosen is not None:
+        backend.reload_language(chosen)
 
 
 # ---------------------------------------------------------------------------
@@ -715,7 +792,7 @@ class CursesBackend(UIBackend):
             _setup_colors()
             curses.curs_set(0)
             stdscr.keypad(True)
-            _form_loop(stdscr, form, values, result)
+            _form_loop(stdscr, form, values, result, self)
 
         curses.wrapper(_run)
         return result[0]
@@ -727,7 +804,7 @@ class CursesBackend(UIBackend):
             _setup_colors()
             curses.curs_set(0)
             stdscr.keypad(True)
-            _subsection_loop(stdscr, title, items, result)
+            _subsection_loop(stdscr, title, items, result, self)
 
         curses.wrapper(_run)
         return result[0]
@@ -739,14 +816,173 @@ class CursesBackend(UIBackend):
             _setup_colors()
             curses.curs_set(0)
             stdscr.keypad(True)
-            _summary_loop(stdscr, sections, result)
+            _summary_loop(stdscr, sections, result, self)
 
         curses.wrapper(_run)
         return result[0]
 
     def show_progress(self, phase: str, message: str) -> None:
-        # Milestone 5 will replace this with a persistent curses progress view.
         print(f"[{phase}] {message}", flush=True)
+
+    # ── Full-screen installation log ───────────────────────
+
+    def install_progress_begin(self, phase_keys: list[str]) -> None:
+        """Initialise phase tracking data. Does NOT open a curses screen."""
+        self._install_phases: list[dict] = [
+            {"key": pk, "title": pk, "status": "pending", "duration_sec": None,
+             "log": [], "expanded": False, "log_scroll": 0}
+            for pk in phase_keys
+        ]
+        self._install_phase_index: dict[str, int] = {pk: i for i, pk in enumerate(phase_keys)}
+
+    def install_progress_update(self, phase_key: str, message: str) -> None:
+        """Append a log line. Called from the orchestrator while phases are running."""
+        idx = self._install_phase_index.get(phase_key)
+        if idx is None:
+            return
+        phase = self._install_phases[idx]
+        if phase["status"] == "pending":
+            phase["status"] = "running"
+        phase["log"].append(message)
+
+    def install_progress_end(self, report: Any) -> None:
+        """Mark phases as done, then open interactive review screen."""
+        for phase_result in report.phases:
+            idx = self._install_phase_index.get(phase_result.key)
+            if idx is not None:
+                phase = self._install_phases[idx]
+                phase["status"] = "done" if phase_result.status == "ok" else "failed"
+                phase["duration_sec"] = phase_result.duration_sec
+                if phase_result.error:
+                    phase["log"].append(f"ERROR: {phase_result.error}")
+        for phase in self._install_phases:
+            if phase["status"] == "pending":
+                phase["status"] = "done"
+
+        # Open the interactive review screen.
+        self._install_selected = 0
+        def _run(stdscr: curses.window) -> None:
+            _setup_colors()
+            curses.curs_set(0)
+            stdscr.keypad(True)
+            self._install_stdscr = stdscr
+            self._install_loop()
+
+        curses.wrapper(_run)
+
+    # ── Internal: interactive install log loop ─────────────
+
+    def _install_loop(self) -> None:
+        """Interactive review loop shown by install_progress_end."""
+        stdscr = self._install_stdscr
+        selected = 0
+        phases = self._install_phases
+
+        while True:
+            self._install_redraw()
+            try:
+                key = stdscr.getch()
+            except KeyboardInterrupt:
+                return
+
+            if key in (ord('q'), ord('Q'), 27):
+                return
+            elif key == curses.KEY_DOWN:
+                selected = min(len(phases) - 1, selected + 1)
+            elif key == curses.KEY_UP:
+                selected = max(0, selected - 1)
+            elif key in (curses.KEY_ENTER, 10, 13, ord(' ')):
+                # Enter/Space toggles expansion
+                phase = phases[selected]
+                if phase["status"] != "pending":
+                    phase["expanded"] = not phase["expanded"]
+                    phase["log_scroll"] = 0
+            elif key == curses.KEY_RESIZE:
+                pass
+            elif key == curses.KEY_NPAGE:  # PgDn — scroll expanded log down
+                phase = phases[selected]
+                if phase["expanded"] and phase["log"]:
+                    phase["log_scroll"] = min(
+                        len(phase["log"]) - 1,
+                        phase["log_scroll"] + 5,
+                    )
+            elif key == curses.KEY_PPAGE:  # PgUp — scroll expanded log up
+                phase = phases[selected]
+                if phase["expanded"] and phase["log"]:
+                    phase["log_scroll"] = max(0, phase["log_scroll"] - 5)
+
+            self._install_selected = selected
+
+    def _install_redraw(self) -> None:
+        """Redraw the interactive installation log screen."""
+        try:
+            stdscr = getattr(self, "_install_stdscr", None)
+            if stdscr is None:
+                return
+            phases = getattr(self, "_install_phases", [])
+            finished = getattr(self, "_install_finished", False)
+            height, width = stdscr.getmaxyx()
+            stdscr.clear()
+
+            # Title bar
+            title = " Gently — Installation complete.  Enter/Space expand/collapse  Esc/q exit"
+            stdscr.attron(curses.color_pair(_P_TITLE) | curses.A_BOLD)
+            _safe(stdscr, 0, 0, title.ljust(width))
+            stdscr.attroff(curses.color_pair(_P_TITLE) | curses.A_BOLD)
+
+            # Phase list
+            selected = self._install_selected
+            row = 1
+            for i, ph in enumerate(phases):
+                if row >= height - 1:
+                    break
+                # Status icon
+                if ph["status"] == "pending":
+                    icon = " "
+                elif ph["status"] == "running":
+                    icon = "▶"
+                elif ph["status"] == "done":
+                    icon = "✓"
+                else:
+                    icon = "✗"
+                # Duration
+                dur_str = ""
+                if ph["duration_sec"] is not None:
+                    dur_str = f" ({ph['duration_sec']:.1f}s)"
+                # Active/highlight
+                active = i == selected
+                attr = curses.color_pair(_P_ACTIVE) if active else curses.color_pair(_P_NORMAL)
+                marker = "▶ " if active else "  "
+                line = f"{marker}{icon} {ph['title']}{dur_str}"
+                stdscr.attron(attr)
+                _safe(stdscr, row, 1, line[:width - 2])
+                stdscr.attroff(attr)
+                row += 1
+
+                # Expanded log
+                if ph["expanded"] and ph["log"]:
+                    log_lines = ph["log"]
+                    log_h = min(len(log_lines), height - row - 2)
+                    log_scroll = ph["log_scroll"]
+                    log_scroll = max(0, min(log_scroll, max(0, len(log_lines) - log_h)))
+                    ph["log_scroll"] = log_scroll
+                    for j in range(log_h):
+                        if row >= height - 1:
+                            break
+                        log_idx = log_scroll + j
+                        if log_idx < len(log_lines):
+                            log_line = log_lines[log_idx]
+                            is_last_log = (log_idx == len(log_lines) - 1) and ph["status"] == "running"
+                            line_attr = curses.A_BOLD if is_last_log else curses.A_NORMAL
+                            _safe(stdscr, row, 4, f"  {log_line}"[:width - 6], line_attr)
+                        row += 1
+
+            # Status bar
+            hint = " ↑↓ navigate  Enter/Space expand/collapse  PgUp/PgDn scroll log  q/Esc exit"
+            _safe(stdscr, height - 1, 0, hint.ljust(width - 1), curses.color_pair(_P_STATUS))
+            stdscr.refresh()
+        except Exception:
+            pass
 
     def show_error(self, message: str) -> None:
         def _run(stdscr: curses.window) -> None:

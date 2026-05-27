@@ -19,57 +19,33 @@ class Stage3Form(SectionForm):
 
     def build_form(self, config: GentlyConfig) -> FormSpec:
         s = config.stage3 or Stage3Config()
+        fields = [
+            FieldSpec(key="arch", label="Architecture", i18n_key="form_stage3_arch_label",
+                      type="choice", default=s.arch or "amd64", options=_ARCHES),
+            FieldSpec(key="variant", label="Variant", i18n_key="form_stage3_variant_label",
+                      type="choice", default=s.variant or "openrc", options=["openrc", "systemd"],
+                      help="form_stage3_variant_help"),
+            FieldSpec(key="mirror", label="Mirror URL", i18n_key="form_stage3_mirror_label",
+                      type="text", default=s.mirror or "https://distfiles.gentoo.org",
+                      required=False, help="form_stage3_mirror_help"),
+            FieldSpec(key="local_path", label="Local tarball path", i18n_key="form_stage3_local_path_label",
+                      type="text", default=s.local_path, required=False, help="form_stage3_local_path_help"),
+            FieldSpec(key="tarball_url", label="Tarball URL", i18n_key="form_stage3_tarball_url_label",
+                      type="text", default=s.tarball_url, required=False, help="form_stage3_tarball_url_help"),
+            FieldSpec(key="verify_signature", label="Verify signature", i18n_key="form_stage3_verify_sig_label",
+                      type="bool", default=s.verify_signature, required=False,
+                      help="form_stage3_verify_sig_help"),
+            FieldSpec(key="signature_url", label="Signature URL", i18n_key="form_stage3_sig_url_label",
+                      type="text", default=s.signature_url, required=False,
+                      visible_when=("verify_signature", True), help="form_stage3_sig_url_help"),
+            FieldSpec(key="signature_path", label="Signature path", i18n_key="form_stage3_sig_path_label",
+                      type="text", default=s.signature_path, required=False,
+                      visible_when=("verify_signature", True), help="form_stage3_sig_path_help"),
+        ]
         return FormSpec(
-            title="Stage3 tarball",
-            subtitle="Architecture, variant and source for the base system tarball",
-            fields=[
-                FieldSpec(
-                    key="arch",
-                    label="Architecture",
-                    type="choice",
-                    default=s.arch or "amd64",
-                    options=_ARCHES,
-                ),
-                FieldSpec(
-                    key="variant",
-                    label="Variant",
-                    type="choice",
-                    default=s.variant or "openrc",
-                    options=["openrc", "systemd"],
-                    help="Init system bundled in the stage3 tarball",
-                ),
-                FieldSpec(
-                    key="mirror",
-                    label="Mirror URL",
-                    type="text",
-                    default=s.mirror,
-                    required=False,
-                    help="Distfiles mirror — Gently fetches the latest tarball automatically",
-                ),
-                FieldSpec(
-                    key="local_path",
-                    label="Local tarball path",
-                    type="text",
-                    default=s.local_path,
-                    required=False,
-                    help="Path to a locally downloaded stage3 tarball",
-                ),
-                FieldSpec(
-                    key="tarball_url",
-                    label="Tarball URL",
-                    type="text",
-                    default=s.tarball_url,
-                    required=False,
-                    help="Direct URL to a specific stage3 tarball",
-                ),
-                FieldSpec(
-                    key="verify_signature",
-                    label="Verify signature",
-                    type="bool",
-                    default=s.verify_signature,
-                    required=False,
-                ),
-            ],
+            title="form_stage3_title",
+            subtitle="form_stage3_subtitle",
+            fields=fields,
         )
 
     def apply(self, config: GentlyConfig, values: dict) -> GentlyConfig:
@@ -79,6 +55,8 @@ class Stage3Form(SectionForm):
             mirror=values.get("mirror") or None,
             local_path=values.get("local_path") or None,
             tarball_url=values.get("tarball_url") or None,
+            signature_url=values.get("signature_url") or None,
+            signature_path=values.get("signature_path") or None,
             verify_signature=bool(values.get("verify_signature", True)),
         )
         return config

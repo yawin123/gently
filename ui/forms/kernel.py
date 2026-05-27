@@ -18,36 +18,18 @@ class KernelForm(SectionForm):
         k = config.kernel or KernelConfig()
         custom = k.custom or KernelCustomConfig()
         return FormSpec(
-            title="Kernel configuration",
+            title="form_kernel_title",
             subtitle=None,
             fields=[
-                FieldSpec(
-                    key="method",
-                    label="Build method",
-                    type="choice",
-                    default=k.method or "genkernel",
-                    options=_METHODS,
-                    help=(
-                        "genkernel: automated  |  dist-kernel: binary  |  "
-                        "menuconfig/custom: manual (config_path required)"
-                    ),
-                ),
-                FieldSpec(
-                    key="config_path",
-                    label="Config file path",
-                    type="text",
-                    default=custom.config_path,
-                    required=False,
-                    help="Path to a .config file (only used with menuconfig or custom)",
-                ),
-                FieldSpec(
-                    key="extra_modules",
-                    label="Extra modules",
-                    type="list",
-                    default=list(k.extra_modules) if k.extra_modules else None,
-                    required=False,
-                    help="Additional kernel modules to force-include",
-                ),
+                FieldSpec(key="method", label="Build method", i18n_key="form_kernel_method_label",
+                          type="choice", default=k.method or "genkernel", options=_METHODS,
+                          help="form_kernel_method_help"),
+                FieldSpec(key="config_path", label="Config file path", i18n_key="form_kernel_config_path_label",
+                          type="text", default=custom.config_path, required=False,
+                          help="form_kernel_config_path_help"),
+                FieldSpec(key="extra_modules", label="Extra modules", i18n_key="form_kernel_extra_modules_label",
+                          type="list", default=list(k.extra_modules) if k.extra_modules else None,
+                          required=False, help="form_kernel_extra_modules_help"),
             ],
         )
 

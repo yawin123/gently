@@ -1,0 +1,222 @@
+id,en_US
+# ── Forms: System ──────────────────────────────────────────
+form_system_title,System configuration
+form_system_subtitle,"Hostname, timezone and locale settings"
+form_system_hostname_label,Hostname
+form_system_hostname_help,"Machine hostname, e.g. myhostbox"
+form_system_timezone_label,Timezone
+form_system_timezone_help,"Full list: ls /usr/share/zoneinfo"
+form_system_locale_label,Locale
+form_system_locale_help,"Primary locale (also used in /etc/locale.gen)"
+form_system_extra_locales_label,Extra locales
+form_system_extra_locales_help,"Additional locales to generate (optional)"
+form_system_keymap_label,Keymap
+form_system_keymap_help,"Console keymap (vconsole)"
+form_system_lang_label,LANG
+form_system_lang_help,"Value for the LANG environment variable"
+# ── Forms: Stage3 ─────────────────────────────────────────
+form_stage3_title,Stage3 tarball
+form_stage3_subtitle,"Architecture, variant and source for the base system tarball"
+form_stage3_arch_label,Architecture
+form_stage3_variant_label,Variant
+form_stage3_variant_help,"Init system bundled in the stage3 tarball"
+form_stage3_mirror_label,Mirror URL
+form_stage3_mirror_help,"Distfiles mirror — Gently fetches the latest tarball automatically"
+form_stage3_local_path_label,Local tarball path
+form_stage3_local_path_help,"Path to a locally downloaded stage3 tarball"
+form_stage3_tarball_url_label,Tarball URL
+form_stage3_tarball_url_help,"Direct URL to a specific stage3 tarball"
+form_stage3_verify_sig_label,Verify signature
+form_stage3_verify_sig_help,"Verify the tarball GPG signature before extraction"
+form_stage3_sig_url_label,Signature URL
+form_stage3_sig_url_help,"URL to the .asc signature (only needed with tarball_url)"
+form_stage3_sig_path_label,Signature path
+form_stage3_sig_path_help,"Local path to the .asc signature (only needed with local_path)"
+# ── Forms: Disks ──────────────────────────────────────────
+form_disk_disk_title,"Disk layout — disk settings"
+form_disk_disk_subtitle,"v1: only one disk is supported"
+form_disk_device_label,Device
+form_disk_device_help,"Target disk for installation. Size is shown in the selector."
+form_disk_partition_table_label,Partition table
+form_disk_partition_table_help,"gpt is recommended for modern UEFI systems. msdos is legacy/BIOS style."
+form_disk_boot_mode_label,Boot mode
+form_disk_boot_mode_help,"Select the firmware boot mode for this install target."
+form_disk_confirm_wipe_label,Confirm before wipe
+form_disk_confirm_wipe_help,"Prompt for confirmation before erasing the disk"
+form_disk_partitions_label,Partitions
+form_disk_partitions_help,"Press Enter to open partition list, then add/edit/delete entries."
+form_disk_partition_action_save,Save
+form_disk_partition_action_cancel,Cancel
+form_disk_partition_action_delete,Delete
+form_disk_partition_size_help_base,"e.g. 512M, 32G, 100%. Percentages are of total disk size."
+form_disk_partition_size_help_available,". Max available now: "
+form_disk_partition_subtitle_unknown,"Max available now: unknown"
+form_disk_partition_flags_help,"Suggested flags are context-aware. Common examples: UEFI EFI partition -> esp (often boot too), BIOS on GPT -> bios_grub, swap partition -> swap."
+form_disk_partition_title,"Disk layout — partition {n}"
+form_disk_partition_label_label,Label
+form_disk_partition_label_help,"Partition label, e.g. boot, root, swap"
+form_disk_partition_size_label,Size
+form_disk_partition_fs_label,Filesystem
+form_disk_partition_fs_help,"Use swap for swap partitions, vfat for EFI system partition, ext4 as common default."
+form_disk_partition_mount_label,Mount point
+form_disk_partition_mount_help,"e.g. /boot/efi, /, /home  (blank for swap)"
+form_disk_partition_mount_opts_label,Mount options
+form_disk_partition_mount_opts_help,"Optional comma-separated options, e.g. noatime,nodiratime."
+form_disk_partition_flags_label,Flags
+# ── Forms: Portage ────────────────────────────────────────
+form_portage_title,Portage configuration
+form_portage_subtitle,"Compiler flags, USE flags and profile"
+form_portage_cflags_label,CFLAGS
+form_portage_cflags_help,"GCC CFLAGS, e.g. -march=native -O2 -pipe"
+form_portage_cxxflags_label,CXXFLAGS
+form_portage_cxxflags_help,"Leave blank to mirror CFLAGS automatically"
+form_portage_makeopts_label,MAKEOPTS
+form_portage_makeopts_help,"Parallel jobs, e.g. -j4 or -j$(nproc)"
+form_portage_cpu_flags_label,CPU_FLAGS_X86
+form_portage_cpu_flags_help,"Run cpuid2cpuflags to get the correct value"
+form_portage_use_label,USE flags
+form_portage_use_help,"Global USE flags — confirm with empty list to set none"
+form_portage_accept_keywords_label,ACCEPT_KEYWORDS
+form_portage_accept_keywords_help,"e.g. amd64 or ~amd64"
+form_portage_accept_license_label,ACCEPT_LICENSE
+form_portage_accept_license_help,"License group. @FREE = only free software"
+form_portage_video_cards_label,VIDEO_CARDS
+form_portage_video_cards_help,"e.g. intel nouveau amdgpu"
+form_portage_input_devices_label,INPUT_DEVICES
+form_portage_mirrors_label,GENTOO_MIRRORS
+form_portage_mirrors_help,"Mirror URLs, e.g. https://mirror.leaseweb.com/gentoo/"
+form_portage_profile_label,Profile
+form_portage_profile_help,"Active Portage profile"
+# ── Forms: Kernel ─────────────────────────────────────────
+form_kernel_title,Kernel configuration
+form_kernel_method_label,Build method
+form_kernel_method_help,"genkernel: automated  |  dist-kernel: binary  |  menuconfig/custom: manual (config_path required)"
+form_kernel_config_path_label,Config file path
+form_kernel_config_path_help,"Path to a .config file (only used with menuconfig or custom)"
+form_kernel_extra_modules_label,Extra modules
+form_kernel_extra_modules_help,"Additional kernel modules to force-include"
+# ── Forms: Bootloader ─────────────────────────────────────
+form_bootloader_title,Bootloader
+form_bootloader_subtitle,"GRUB fields are only used when type=grub"
+form_bootloader_type_label,Bootloader type
+form_bootloader_type_help,"grub: install GRUB2  |  none: skip bootloader installation"
+form_bootloader_grub_install_disk_label,GRUB install disk
+form_bootloader_grub_install_disk_help,"Disk to install GRUB to, e.g. /dev/sda (blank = auto-detect)"
+form_bootloader_grub_timeout_label,"GRUB timeout (s)"
+form_bootloader_extra_params_label,Extra kernel params
+form_bootloader_extra_params_help,"Extra parameters appended to the kernel command line"
+# ── Forms: Services ───────────────────────────────────────
+form_services_title,Services
+form_services_subtitle,"Select the daemon for each system role (none = do not install)"
+form_services_network_label,Network manager
+form_services_cron_label,Cron daemon
+form_services_logging_label,Logging daemon
+form_services_ssh_label,SSH server
+form_services_ntp_label,NTP daemon
+form_services_firewall_label,Firewall
+form_services_printing_label,Printing
+form_services_bluetooth_label,Bluetooth
+form_services_extra_enable_label,Extra services to enable
+form_services_extra_enable_help,"Service names to emerge and activate (e.g. libvirtd, docker, acpid)"
+# ── Forms: Users ──────────────────────────────────────────
+form_users_title,Users
+form_users_subtitle,"Root authentication and additional local users"
+form_users_credentials_file_label,Credentials file
+form_users_credentials_file_help,"Path to a file with pre-hashed credentials (shadow format)"
+form_users_root_password_label,Root password
+form_users_root_password_help,"Hashed automatically with SHA-512 before saving"
+form_users_root_password_confirm_label,Confirm root password
+form_users_root_password_confirm_help,"Repeat the same password to avoid typos"
+form_users_accounts_label,User accounts
+form_users_accounts_help,"Press Enter to add/edit/delete non-root users"
+form_users_account_title,"Users — account {name}"
+form_users_account_name_label,Username
+form_users_account_name_help,"Local account name, e.g. alice"
+form_users_account_password_label,Password
+form_users_account_password_help,"Set or change password. Required for new accounts."
+form_users_account_password_confirm_label,Confirm password
+form_users_account_password_confirm_help,"Repeat password to avoid typos"
+form_users_account_groups_label,Groups
+form_users_account_groups_help,"Supplementary groups, e.g. wheel audio video"
+form_users_account_shell_label,Shell
+form_users_account_shell_help,"Login shell, e.g. /bin/bash"
+form_users_account_comment_label,Comment
+form_users_account_create_home_label,Create home
+form_users_account_ssh_keys_label,SSH authorized keys
+form_users_account_ssh_keys_help,"Public SSH keys for this user"
+form_users_accounts_subsection_title,"Users — local accounts"
+form_users_error_username_required,Username is required.
+form_users_error_root_use_root_fields,"Use root password fields for root account."
+form_users_error_user_exists,"User ''{username}'' already exists."
+form_users_error_password_required_new,Password is required for new users.
+form_users_error_password_mismatch,"User password confirmation does not match."
+form_users_error_user_needs_password,User must have a password.
+form_users_error_root_password_mismatch,"Root password confirmation does not match."
+form_users_error_confirm_before_password,"Enter root password before confirmation."
+form_users_error_incomplete,"Users configuration requires either credentials_file or a root password."
+# ── Forms: Packages ───────────────────────────────────────
+form_packages_title,Extra packages
+form_packages_subtitle,"Additional packages to install after the base system"
+form_packages_extra_label,Extra packages
+form_packages_extra_help,"Packages to install, e.g. vim git htop"
+form_packages_source_only_label,Source-only packages
+form_packages_source_only_help,"Packages that must always be compiled from source (no binpkg)"
+# ── Forms: distcc ─────────────────────────────────────────
+form_distcc_title,"distcc (distributed compilation)"
+form_distcc_subtitle,"Leave enabled=no to skip distcc entirely"
+form_distcc_enabled_label,Enable distcc
+form_distcc_hosts_label,Hosts
+form_distcc_hosts_help,"distcc host list, e.g. localhost/4 192.168.1.10/8"
+form_distcc_makeopts_jobs_label,MAKEOPTS jobs
+form_distcc_makeopts_jobs_help,"Override number of parallel jobs for distcc builds"
+form_distcc_pump_mode_label,Pump mode
+form_distcc_pump_mode_help,"Use distcc-pump for header file distribution"
+form_distcc_install_on_target_label,Install distcc on target
+# ── UI: Curses backend ────────────────────────────────────
+ui_list_editor_add_dialog_title,"Add {field_label}"
+ui_list_editor_title,"Edit list: {field_label}"
+ui_list_editor_hint," ↑↓ navigate  A add  D delete  F2 lang  F10/Alt+S confirm  Esc cancel"
+ui_choice_popup_title," {field_label} "
+ui_choice_popup_hint," ↑↓/PgUp/PgDn navigate  Enter select  Esc cancel"
+ui_form_hint_default," ↑↓/Tab navigate  Enter edit  Space toggle  F2 lang  F10/Alt+S save  Esc cancel  ? help"
+ui_form_hint_with_delete," ↑↓/Tab navigate  Enter edit  Space toggle  F2 lang  F10 save  D delete  Esc cancel  ? help"
+ui_help_popup_title,Help
+ui_subsection_hint," ↑↓ navigate  Enter select  F2 lang  Esc done"
+ui_subsection_no_items,"(no items yet)"
+ui_subsection_add_new,"+ Add new"
+ui_subsection_done,Done
+ui_summary_title," Configuration Summary"
+ui_summary_hint," ↑↓ scroll  ←→/Tab action  F2 lang  Enter confirm"
+ui_summary_section_selector_label,Select section to edit
+ui_summary_action_save,Save
+ui_summary_action_cancel,Cancel
+# ── Validators ────────────────────────────────────────────
+validator_error_multiple_disks,"Multiple disks are not supported in v1. Only the first [[disks]] entry would be processed. Remove extra [[disks]] entries to continue."
+validator_error_uefi_esp_count,"Disk ''{label}'' uses boot_mode=''uefi'' but has {esp_count} ESP partition(s) (exactly 1 required, with flags=[\"esp\"])."
+validator_error_partition_percent_exceeds_100,"Disk ''{label}'' has percentage partition sizes totaling {percent_total}%, which exceeds 100%."
+validator_error_partition_size_exceeds_disk,"Disk ''{label}'' has explicit partition sizes totaling {allocated} bytes, which exceeds detected disk size {disk_size} bytes."
+validator_error_partition_combined_exceeds_disk,"Disk ''{label}'' allocates {allocated} bytes plus {percent_total}% of disk size, which exceeds detected disk size {disk_size} bytes."
+validator_error_distcc_empty_hosts,"distcc.enabled is true but distcc.hosts is empty. Add at least one distccd host."
+validator_error_kernel_method_requires_config,"kernel.method=''{method}'' requires [kernel.custom] with config_path set."
+validator_error_grub_requires_section,"bootloader.type=''grub'' requires a [bootloader.grub] section."
+validator_error_systemd_logging_conflict,"stage3.variant contains ''systemd'' but services.roles.logging is ''{logging}''. systemd uses journald implicitly; set logging to ''none'' or omit it."
+validator_error_systemd_ntp_conflict,"stage3.variant contains ''systemd'' but services.roles.ntp is ''{ntp}''. systemd uses systemd-timesyncd implicitly; set ntp to ''none'' or omit it."
+# ── Installer: Preflight ──────────────────────────────────
+preflight_error_empty_output,"{label} returned empty output"
+preflight_error_parse_int_failed,"Could not parse integer from {label}: {value}"
+preflight_error_disk_device_missing,"Disk device is missing in configuration"
+preflight_error_inspect_mountpoints_failed,"Could not inspect mountpoints for disk {disk}: {error}"
+preflight_error_disk_mounted,"Disk {disk} has mounted filesystems and cannot be reused safely"
+preflight_error_gpg_verification_failed,"
+  {stderr}"
+preflight_error_stage3_url_not_found,"Could not determine latest stage3 URL from autobuilds index"
+preflight_error_distcc_not_installed,"distcc is enabled but the distcc client is not installed in the live environment. Bootstrap it first (sys-devel/distcc) before running the installer."
+preflight_error_invalid_distcc_host,"Invalid distcc host entry: {host}"
+# ── Installer: Stage3 ─────────────────────────────────────
+stage3_error_empty_output,"{label} returned empty output"
+stage3_error_parse_int_failed,"Could not parse integer from {label}: {value}"
+stage3_error_insufficient_space,"Not enough free space in {mountpoint} for stage3 extraction. Available={available}, required={required}"
+# ── App: Summary / Main ───────────────────────────────────
+summary_mark_complete,✓
+summary_section_complete_message,"{section_name} — configuration complete"
+main_error_unknown_section,"Unknown section key: {section_key}"
