@@ -51,6 +51,7 @@ form_disk_partition_action_delete,Eliminar
 form_disk_partition_size_help_base,"ej. 512M, 32G, 100%. Los porcentajes son del tamaño total del disco."
 form_disk_partition_size_help_available,". Máximo disponible ahora: "
 form_disk_partition_subtitle_unknown,"Máximo disponible ahora: desconocido"
+form_disk_partition_subtitle_avail,"Máximo disponible ahora: {size}"
 form_disk_partition_flags_help,"Las flags sugeridas dependen del contexto. Ejemplos comunes: partición UEFI EFI -> esp (a menudo también boot), BIOS en GPT -> bios_grub, partición swap -> swap."
 form_disk_partition_title,"Diseño del disco — partición {n}"
 form_disk_partition_label_label,Etiqueta
@@ -190,6 +191,15 @@ ui_summary_hint," ↑↓ desplazarse  ←→/Tab acción  F2 idioma  Enter confi
 ui_summary_section_selector_label,Seleccione la sección a editar
 ui_summary_action_save,Guardar
 ui_summary_action_cancel,Cancelar
+ui_list_editor_add_item_prompt,Agregar elemento: 
+ui_press_any_key,[ Pulse cualquier tecla ]
+ui_error_title,Error
+ui_confirm_no,No
+ui_confirm_yes,Sí
+ui_language_label,Idioma
+ui_install_title_running, Gently — Instalando…
+ui_install_title_done, Gently — Instalación completa
+ui_install_hint, ↑↓ navegar  Enter/Espacio expandir/colapsar  RepÁg/AvPág desplazar log  q/Esc salir
 # ── Validators ────────────────────────────────────────────
 validator_error_multiple_disks,"No se admiten múltiples discos en v1. Solo se procesará la primera entrada de [[disks]]. Elimine las entradas de [[disks]] adicionales para continuar."
 validator_error_uefi_esp_count,"El disco ''{label}'' usa boot_mode=''uefi'' pero tiene {esp_count} partición(es) ESP (se requiere exactamente 1, con flags=[\"esp\"])."

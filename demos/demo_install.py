@@ -27,7 +27,7 @@ from ui.curses_backend import CursesBackend
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Gently — demo installer")
-    parser.add_argument("config", help="Path to config.toml")
+    parser.add_argument("--config", help="Path to config.toml")
     parser.add_argument(
         "--target", default="local",
         help="Target: 'local' or 'ssh:user@host' (default: local)",

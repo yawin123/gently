@@ -69,16 +69,16 @@ class UIBackend(ABC):
         """Called after the last phase finishes (or on error)."""
 
     @abstractmethod
-    def show_error(self, message: str) -> None:
-        """Display a blocking error dialog."""
+    def show_error(self, title_key: str, message: str, ok_key: str) -> None:
+        """Display a blocking error dialog. title_key and ok_key are i18n keys."""
 
     @abstractmethod
-    def show_confirm(self, message: str) -> bool:
-        """Display a yes/no confirmation dialog."""
+    def show_confirm(self, message: str, yes_key: str, no_key: str) -> bool:
+        """Display a yes/no confirmation dialog. yes_key and no_key are i18n keys."""
 
     @abstractmethod
-    def show_info(self, title: str, lines: list[str]) -> None:
-        """Display non-interactive information (completed section, notice, etc.)"""
+    def show_info(self, title: str, lines: list[str], ok_key: str) -> None:
+        """Display non-interactive information. ok_key is an i18n key."""
 
     def interrupt(self) -> None:
         """Called when the user presses Ctrl+C. Default: exit immediately."""

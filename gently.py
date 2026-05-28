@@ -40,7 +40,7 @@ def collect(config: GentlyConfig, backend: UIBackend) -> GentlyConfig:
     while True:
         for form in FORMS:
             if form.is_complete(config):
-                backend.show_info("✓", [f"{form.section_name} — configuration complete"])
+                backend.show_info("✓", [f"{form.section_name} — configuration complete"], "ui_press_any_key")
             else:
                 config = form.run(config, backend)
 
@@ -51,7 +51,7 @@ def collect(config: GentlyConfig, backend: UIBackend) -> GentlyConfig:
             section_key = action.split(":", 1)[1]
             form = forms_by_key.get(section_key)
             if form is None:
-                backend.show_error(f"Unknown section key: {section_key}")
+                backend.show_error("ui_error_title", f"Unknown section key: {section_key}", "ui_press_any_key")
                 continue
             config = form.run(config, backend)
 
@@ -102,7 +102,7 @@ def main() -> None:
 
     errors = validate_coherence(config)
     if errors:
-        backend.show_error("\n".join(errors))
+        backend.show_error("ui_error_title", "\n".join(errors), "ui_press_any_key")
         sys.exit(1)
     # Milestone 5: run_installation(config, backend)
 

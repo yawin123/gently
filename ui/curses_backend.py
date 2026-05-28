@@ -146,7 +146,7 @@ def _choice_popup(stdscr: curses.window, field: FieldSpec, current: Any, backend
     while True:
         win.clear()
         win.box()
-        title = f" {field.label} "
+        title = backend.translate("ui_choice_popup_title").format(field_label=field.label)
         _safe(win, 0, max(1, (box_w - len(title)) // 2), title, curses.A_BOLD)
 
         if sel < scroll:
@@ -207,7 +207,7 @@ def _list_editor(stdscr: curses.window, field: FieldSpec, current: list | None, 
         stdscr.clear()
 
         stdscr.attron(curses.color_pair(_P_TITLE) | curses.A_BOLD)
-        _safe(stdscr, 0, 0, f" Edit list: {field.label}".ljust(width))
+        _safe(stdscr, 0, 0, (" " + backend.translate("ui_list_editor_title").format(field_label=field.label)).ljust(width))
         stdscr.attroff(curses.color_pair(_P_TITLE) | curses.A_BOLD)
 
         for i, item in enumerate(items):
@@ -237,7 +237,7 @@ def _list_editor(stdscr: curses.window, field: FieldSpec, current: list | None, 
                     continue
                 add_field = FieldSpec(
                     key=field.key,
-                    label=f"Add {field.label}",
+                    label=backend.translate("ui_list_editor_add_dialog_title").format(field_label=field.label),
                     type="choice",
                     default=available[0],
                     options=available,
@@ -249,7 +249,7 @@ def _list_editor(stdscr: curses.window, field: FieldSpec, current: list | None, 
                     items.insert(insert_at, new)
                     sel = insert_at
             else:
-                new = _prompt_line(stdscr, height - 2, "Add item: ")
+                new = _prompt_line(stdscr, height - 2, backend.translate("ui_list_editor_add_item_prompt"))
                 if new:
                     insert_at = sel + 1 if items else 0
                     items.insert(insert_at, new)
@@ -275,7 +275,7 @@ def _list_editor(stdscr: curses.window, field: FieldSpec, current: list | None, 
 # Generic popup (info / error)
 # ---------------------------------------------------------------------------
 
-def _popup(stdscr: curses.window, title: str, lines: list[str], error: bool = False) -> None:
+def _popup(stdscr: curses.window, title: str, lines: list[str], error: bool = False, press_key_label: str = "[ Press any key ]") -> None:
     height, width = stdscr.getmaxyx()
     max_line = max((len(l) for l in lines), default=0)
     box_w = min(max(max_line + 6, len(title) + 6, 28), width - 2)
@@ -295,7 +295,7 @@ def _popup(stdscr: curses.window, title: str, lines: list[str], error: bool = Fa
             break
         _safe(win, i + 2, 3, line[:box_w - 4])
 
-    _safe(win, box_h - 2, max(1, (box_w - 17) // 2), "[ Press any key ]")
+    _safe(win, box_h - 2, max(1, (box_w - len(press_key_label)) // 2), press_key_label)
     win.refresh()
     win.getch()
     del win
@@ -499,7 +499,8 @@ def _form_loop(
             field = visible[current]
             if field.help:
                 help_text = backend.translate(field.help)
-                _popup(stdscr, backend.translate("ui_help_popup_title"), help_text.split('\n'))
+                _popup(stdscr, backend.translate("ui_help_popup_title"), help_text.split('\n'),
+                       press_key_label=backend.translate("ui_press_any_key"))
         elif key == curses.KEY_RESIZE:
             stdscr.clear()
 
@@ -606,7 +607,7 @@ def _summary_loop(
             if action_key == "cancel" and section_keys:
                 chosen = _choice_popup(
                     stdscr,
-                    FieldSpec(key="_sec", label="Select section to edit",
+                    FieldSpec(key="_sec", label=backend.translate("ui_summary_section_selector_label"),
                               type="choice", options=section_keys),
                     section_keys[0],
                     backend,
@@ -619,7 +620,7 @@ def _summary_loop(
             if section_keys:
                 chosen = _choice_popup(
                     stdscr,
-                    FieldSpec(key="_sec", label="Select section to edit",
+                    FieldSpec(key="_sec", label=backend.translate("ui_summary_section_selector_label"),
                               type="choice", options=section_keys),
                     section_keys[0],
                     backend,
@@ -726,7 +727,7 @@ def _cycle_language(stdscr: curses.window, backend: UIBackend) -> None:
     current = backend.current_language()
     chosen = _choice_popup(
         stdscr,
-        FieldSpec(key="lang", label="Language", type="choice", options=langs),
+        FieldSpec(key="lang", label=backend.translate("ui_language_label"), type="choice", options=langs),
         current,
         backend,
     )
@@ -738,7 +739,7 @@ def _cycle_language(stdscr: curses.window, backend: UIBackend) -> None:
 # Confirm loop
 # ---------------------------------------------------------------------------
 
-def _confirm_loop(stdscr: curses.window, message: str) -> bool:
+def _confirm_loop(stdscr: curses.window, message: str, yes_label: str, no_label: str) -> bool:
     height, width = stdscr.getmaxyx()
     lines = message.split('\n')
     box_w = min(max((len(l) for l in lines), default=20) + 8, width - 4)
@@ -749,14 +750,20 @@ def _confirm_loop(stdscr: curses.window, message: str) -> bool:
     win.keypad(True)
     sel = 0  # 0=No (safe default), 1=Yes
 
+    no_btn = f"  {no_label}  "
+    yes_btn = f"  {yes_label}  "
+    labels = [no_btn, yes_btn]
+    gap = 4
+    total = len(no_btn) + gap + len(yes_btn)
+    btn_start = max(1, (box_w - total) // 2)
+    positions = [btn_start, btn_start + len(no_btn) + gap]
+
     while True:
         win.clear()
         win.box()
         for i, line in enumerate(lines):
             _safe(win, i + 1, 3, line[:box_w - 4])
 
-        labels = ["  No  ", "  Yes  "]
-        positions = [box_w // 2 - 9, box_w // 2 + 1]
         for i, (label, pos) in enumerate(zip(labels, positions)):
             attr = curses.color_pair(_P_ACTIVE) if i == sel else curses.color_pair(_P_NORMAL)
             win.attron(attr)
@@ -1018,9 +1025,9 @@ class CursesBackend(UIBackend):
 
             # Title bar
             if finished:
-                title = " Gently — Installation complete.  Enter/Space expand/collapse  Esc/q exit"
+                title = self.translate("ui_install_title_done")
             else:
-                title = " Gently — Installing\u2026  Enter/Space expand/collapse"
+                title = self.translate("ui_install_title_running")
             stdscr.attron(curses.color_pair(_P_TITLE) | curses.A_BOLD)
             _safe(stdscr, 0, 0, title.ljust(width))
             stdscr.attroff(curses.color_pair(_P_TITLE) | curses.A_BOLD)
@@ -1076,36 +1083,37 @@ class CursesBackend(UIBackend):
                         row += 1
 
             # Status bar
-            hint = " ↑↓ navigate  Enter/Space expand/collapse  PgUp/PgDn scroll log  q/Esc exit"
+            hint = self.translate("ui_install_hint")
             _safe(stdscr, height - 1, 0, hint.ljust(width - 1), curses.color_pair(_P_STATUS))
             stdscr.refresh()
         except Exception:
             pass
 
-    def show_error(self, message: str) -> None:
+    def show_error(self, title_key: str, message: str, ok_key: str) -> None:
         def _run(stdscr: curses.window) -> None:
             _setup_colors()
             stdscr.keypad(True)
-            _popup(stdscr, "Error", message.split('\n'), error=True)
+            _popup(stdscr, self.translate(title_key), message.split('\n'), error=True,
+                   press_key_label=self.translate(ok_key))
 
         curses.wrapper(_run)
 
-    def show_confirm(self, message: str) -> bool:
+    def show_confirm(self, message: str, yes_key: str, no_key: str) -> bool:
         result = [False]
 
         def _run(stdscr: curses.window) -> None:
             _setup_colors()
             curses.curs_set(0)
             stdscr.keypad(True)
-            result[0] = _confirm_loop(stdscr, message)
+            result[0] = _confirm_loop(stdscr, message, self.translate(yes_key), self.translate(no_key))
 
         curses.wrapper(_run)
         return result[0]
 
-    def show_info(self, title: str, lines: list[str]) -> None:
+    def show_info(self, title: str, lines: list[str], ok_key: str) -> None:
         def _run(stdscr: curses.window) -> None:
             _setup_colors()
             stdscr.keypad(True)
-            _popup(stdscr, title, lines)
+            _popup(stdscr, title, lines, press_key_label=self.translate(ok_key))
 
         curses.wrapper(_run)

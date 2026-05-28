@@ -42,13 +42,13 @@ class _NoopBackend(UIBackend):
     def show_progress(self, phase, message):
         pass
 
-    def show_error(self, message):
+    def show_error(self, title_key, message, ok_key):
         pass
 
-    def show_confirm(self, message) -> bool:
+    def show_confirm(self, message, yes_key, no_key) -> bool:
         return True
 
-    def show_info(self, title, lines):
+    def show_info(self, title, lines, ok_key):
         self.info_calls.append(lines[0] if lines else "")
 
 

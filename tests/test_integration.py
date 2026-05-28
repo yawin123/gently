@@ -110,7 +110,7 @@ class StubBackend(UIBackend):
                 }
         return _auto_values(spec)
 
-    def show_confirm(self, message: str) -> bool:
+    def show_confirm(self, message: str, yes_key: str, no_key: str) -> bool:
         self.show_confirm_calls.append(message)
         return True
 
@@ -125,10 +125,10 @@ class StubBackend(UIBackend):
     def show_progress(self, phase: str, message: str) -> None:
         pass
 
-    def show_error(self, message: str) -> None:
+    def show_error(self, title_key: str, message: str, ok_key: str) -> None:
         pass
 
-    def show_info(self, title: str, lines: list[str]) -> None:
+    def show_info(self, title: str, lines: list[str], ok_key: str) -> None:
         self.show_info_calls.append(title)
 
 

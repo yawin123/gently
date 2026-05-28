@@ -279,7 +279,7 @@ def test_users_run_requires_root_auth():
                 "root_password_confirm": "secret",
             }
 
-        def show_error(self, message):
+        def show_error(self, title_key, message, ok_key):
             self.errors.append(message)
 
     backend = ScriptedBackend()
@@ -309,7 +309,7 @@ def test_users_run_requires_password_match():
                 "root_password_confirm": "secret",
             }
 
-        def show_error(self, message):
+        def show_error(self, title_key, message, ok_key):
             self.errors.append(message)
 
     backend = ScriptedBackend()
@@ -385,10 +385,10 @@ def test_disks_run_partition_cancel_then_add():
             self.show_subsection_calls.append(title)
             return "add" if len(self.show_subsection_calls) < 3 else "done"
 
-        def show_info(self, title, lines):
+        def show_info(self, title, lines, ok_key):
             pass
 
-        def show_confirm(self, message):
+        def show_confirm(self, message, yes_key, no_key):
             return True
 
     config = GentlyConfig()
@@ -454,10 +454,10 @@ def test_disks_run_edit_existing_partition():
             self._sub_calls += 1
             return "edit:0" if self._sub_calls == 1 else "done"
 
-        def show_info(self, title, lines):
+        def show_info(self, title, lines, ok_key):
             pass
 
-        def show_confirm(self, message):
+        def show_confirm(self, message, yes_key, no_key):
             return True
 
     config = GentlyConfig(disks=[DiskConfig(
@@ -509,10 +509,10 @@ def test_disks_run_delete_existing_partition():
             self._sub_calls += 1
             return "edit:0" if self._sub_calls == 1 else "done"
 
-        def show_info(self, title, lines):
+        def show_info(self, title, lines, ok_key):
             pass
 
-        def show_confirm(self, message):
+        def show_confirm(self, message, yes_key, no_key):
             return True
 
     config = GentlyConfig(disks=[DiskConfig(

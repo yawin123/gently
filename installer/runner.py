@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import shlex
 import subprocess
+import threading
 import time
 import os
 import shutil
@@ -201,19 +202,28 @@ class LocalRunner(Runner):
 		if spec.input_text is not None and proc.stdin is not None:
 			proc.stdin.write(spec.input_text)
 			proc.stdin.close()
+		stderr_lines: list[str] = []
+
+		def _read_stderr() -> None:
+			if proc.stderr is not None:
+				for raw in iter(proc.stderr.readline, ""):
+					stderr_lines.append(raw.rstrip("\n"))
+
+		stderr_thread = threading.Thread(target=_read_stderr, daemon=True)
+		stderr_thread.start()
 		stdout_lines: list[str] = []
 		if proc.stdout is not None:
-			for raw_line in proc.stdout:
+			for raw_line in iter(proc.stdout.readline, ""):
 				line = raw_line.rstrip("\n")
 				stdout_lines.append(line)
 				line_cb(line)
 		proc.wait()
-		stderr = proc.stderr.read() if proc.stderr is not None else ""
+		stderr_thread.join()
 		return CommandResult(
 			argv=spec.argv,
 			returncode=proc.returncode,
 			stdout="\n".join(stdout_lines),
-			stderr=stderr,
+			stderr="\n".join(stderr_lines),
 			duration_sec=time.time() - started,
 			transport=self.transport,
 			phase=spec.phase,
@@ -349,6 +359,71 @@ class SshRunner(Runner):
 			returncode=cp.returncode,
 			stdout=cp.stdout,
 			stderr=cp.stderr,
+			duration_sec=time.time() - started,
+			transport=self.transport,
+			phase=spec.phase,
+		)
+
+	def _execute_streaming(
+		self,
+		spec: CommandSpec,
+		line_cb: Callable[[str], None],
+	) -> CommandResult:
+		"""Execute a remote command via SSH, streaming stdout line-by-line in real time."""
+		self.ensure_session()
+
+		prelude: list[str] = []
+		if spec.cwd:
+			prelude.append(f"cd {shlex.quote(spec.cwd)}")
+		if spec.env:
+			env_assign = " ".join(
+				f"{k}={shlex.quote(v)}" for k, v in spec.env.items()
+			)
+			prelude.append(f"export {env_assign}")
+
+		core = shlex.join(spec.argv)
+		remote_cmd = core if not prelude else " && ".join([*prelude, core])
+		ssh_cmd = [
+			"ssh", *self._ssh_opts(), self.target,
+			remote_cmd,
+		]
+		ssh_cmd, env = self._with_auth(ssh_cmd)
+
+		started = time.time()
+		stdin_src: int = subprocess.DEVNULL if spec.input_text is None else subprocess.PIPE
+		proc = subprocess.Popen(
+			ssh_cmd,
+			env=env,
+			stdin=stdin_src,
+			stdout=subprocess.PIPE,
+			stderr=subprocess.PIPE,
+			text=True,
+		)
+		if spec.input_text is not None and proc.stdin is not None:
+			proc.stdin.write(spec.input_text)
+			proc.stdin.close()
+		stderr_lines: list[str] = []
+
+		def _read_stderr() -> None:
+			if proc.stderr is not None:
+				for raw in iter(proc.stderr.readline, ""):
+					stderr_lines.append(raw.rstrip("\n"))
+
+		stderr_thread = threading.Thread(target=_read_stderr, daemon=True)
+		stderr_thread.start()
+		stdout_lines: list[str] = []
+		if proc.stdout is not None:
+			for raw_line in iter(proc.stdout.readline, ""):
+				line = raw_line.rstrip("\n")
+				stdout_lines.append(line)
+				line_cb(line)
+		proc.wait()
+		stderr_thread.join()
+		return CommandResult(
+			argv=spec.argv,
+			returncode=proc.returncode,
+			stdout="\n".join(stdout_lines),
+			stderr="\n".join(stderr_lines),
 			duration_sec=time.time() - started,
 			transport=self.transport,
 			phase=spec.phase,

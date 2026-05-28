@@ -4,6 +4,8 @@ import subprocess
 
 from typing import Any
 
+import i18n
+
 from model.config import DiskConfig, GentlyConfig, PartitionConfig
 from ui.abstract import FieldSpec, FormSpec, UIBackend
 from ui.forms.base import SectionForm
@@ -160,47 +162,52 @@ class DisksForm(SectionForm):
                 options = [default_device] + options
 
         return FormSpec(
-            title="Disk layout — disk settings",
-            subtitle="v1: only one disk is supported",
+            title="form_disk_disk_title",
+            subtitle="form_disk_disk_subtitle",
             fields=[
                 FieldSpec(
                     key="device",
                     label="Device",
+                    i18n_key="form_disk_device_label",
                     type="choice",
                     default=default_device,
                     options=options,
-                    help="Target disk for installation. Size is shown in the selector.",
+                    help="form_disk_device_help",
                 ),
                 FieldSpec(
                     key="partition_table",
                     label="Partition table",
+                    i18n_key="form_disk_partition_table_label",
                     type="choice",
                     default=disk.partition_table or "gpt",
                     options=_PARTITION_TABLES,
-                    help="gpt is recommended for modern UEFI systems. msdos is legacy/BIOS style.",
+                    help="form_disk_partition_table_help",
                 ),
                 FieldSpec(
                     key="boot_mode",
                     label="Boot mode",
+                    i18n_key="form_disk_boot_mode_label",
                     type="choice",
                     default=disk.boot_mode or "uefi",
                     options=_BOOT_MODES,
-                    help="Select the firmware boot mode for this install target.",
+                    help="form_disk_boot_mode_help",
                 ),
                 FieldSpec(
                     key="confirm_wipe",
                     label="Confirm before wipe",
+                    i18n_key="form_disk_confirm_wipe_label",
                     type="bool",
                     default=disk.confirm_wipe,
-                    help="Prompt for confirmation before erasing the disk",
+                    help="form_disk_confirm_wipe_help",
                 ),
                 FieldSpec(
                     key="partitions_editor",
                     label="Partitions",
+                    i18n_key="form_disk_partitions_label",
                     type="subsection",
                     default=part_summary,
                     required=False,
-                    help="Press Enter to open partition list, then add/edit/delete entries.",
+                    help="form_disk_partitions_help",
                 ),
             ],
         )
@@ -221,71 +228,69 @@ class DisksForm(SectionForm):
         if existing:
             actions.insert(1, ("Delete", "delete"))
 
-        size_help = "e.g. 512M, 32G, 100%. Percentages are of total disk size."
-        subtitle = None
         if available_bytes is not None:
-            size_help += f". Max available now: {_format_bytes(available_bytes)}"
-            subtitle = f"Max available now: {_format_bytes(available_bytes)}"
+            subtitle = i18n.t("form_disk_partition_subtitle_avail", size=_format_bytes(available_bytes))
         else:
-            subtitle = "Max available now: unknown"
+            subtitle = "form_disk_partition_subtitle_unknown"
 
         flags_options = _suggest_partition_flags(partition_table, boot_mode, part)
-        flags_help = (
-            "Suggested flags are context-aware. "
-            "Common examples: UEFI EFI partition -> esp (often boot too), "
-            "BIOS on GPT -> bios_grub, swap partition -> swap."
-        )
 
         return FormSpec(
-            title=f"Disk layout — partition {idx}",
+            title=i18n.t("form_disk_partition_title", n=idx),
             subtitle=subtitle,
             fields=[
                 FieldSpec(
                     key="label",
                     label="Label",
+                    i18n_key="form_disk_partition_label_label",
                     type="text",
                     default=part.label,
-                    help="Partition label, e.g. boot, root, swap",
+                    help="form_disk_partition_label_help",
                 ),
                 FieldSpec(
                     key="size",
                     label="Size",
+                    i18n_key="form_disk_partition_size_label",
                     type="text",
                     default=part.size,
-                    help=size_help,
+                    help="form_disk_partition_size_help_base",
                 ),
                 FieldSpec(
                     key="filesystem",
                     label="Filesystem",
+                    i18n_key="form_disk_partition_fs_label",
                     type="choice",
                     default=part.filesystem or "ext4",
                     options=_FILESYSTEMS,
-                    help="Use swap for swap partitions, vfat for EFI system partition, ext4 as common default.",
+                    help="form_disk_partition_fs_help",
                 ),
                 FieldSpec(
                     key="mount",
                     label="Mount point",
+                    i18n_key="form_disk_partition_mount_label",
                     type="text",
                     default=part.mount,
                     required=False,
-                    help="e.g. /boot/efi, /, /home  (blank for swap)",
+                    help="form_disk_partition_mount_help",
                 ),
                 FieldSpec(
                     key="mount_options",
                     label="Mount options",
+                    i18n_key="form_disk_partition_mount_opts_label",
                     type="text",
                     default=part.mount_options,
                     required=False,
-                    help="Optional comma-separated options, e.g. noatime,nodiratime.",
+                    help="form_disk_partition_mount_opts_help",
                 ),
                 FieldSpec(
                     key="flags",
                     label="Flags",
+                    i18n_key="form_disk_partition_flags_label",
                     type="list",
                     default=list(part.flags) if part.flags else None,
                     options=flags_options,
                     required=False,
-                    help=flags_help,
+                    help="form_disk_partition_flags_help",
                 ),
             ],
             actions=actions,

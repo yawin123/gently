@@ -18,7 +18,7 @@ mirror  = "https://distfiles.gentoo.org"
 
 [[disks]]
 id              = "primary"
-device          = "/dev/sda"
+device          = "/dev/vda"
 partition_table = "gpt"
 boot_mode       = "uefi"
 

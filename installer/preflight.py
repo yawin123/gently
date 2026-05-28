@@ -31,7 +31,6 @@ def _check_required_commands(runner: Runner) -> None:
 			f"command -v {shlex.quote(cmd)} >/dev/null",
 			phase=PHASE_KEY,
 		)
-		runner.run_shell("sleep 5", phase=PHASE_KEY)
 
 
 def _check_connectivity(runner: Runner) -> None:

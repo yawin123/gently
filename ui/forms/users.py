@@ -230,8 +230,10 @@ class UsersForm(SectionForm):
                 if self.is_complete(snapshot):
                     return config
                 backend.show_error(
+                    "ui_error_title",
                     "Users configuration requires either credentials_file "
-                    "or a root password."
+                    "or a root password.",
+                    "ui_press_any_key",
                 )
                 continue
 
@@ -261,23 +263,23 @@ class UsersForm(SectionForm):
                             password = acc_values.get("password") or None
                             password_confirm = acc_values.get("password_confirm") or None
                             if not username:
-                                backend.show_error("Username is required.")
+                                backend.show_error("ui_error_title", "Username is required.", "ui_press_any_key")
                                 draft_account = self._account_from_values(acc_values, previous=draft_account)
                                 continue
                             if username == "root":
-                                backend.show_error("Use root password fields for root account.")
+                                backend.show_error("ui_error_title", "Use root password fields for root account.", "ui_press_any_key")
                                 draft_account = self._account_from_values(acc_values, previous=draft_account)
                                 continue
                             if any((a.name or "") == username for a in accounts):
-                                backend.show_error(f"User '{username}' already exists.")
+                                backend.show_error("ui_error_title", f"User '{username}' already exists.", "ui_press_any_key")
                                 draft_account = self._account_from_values(acc_values, previous=draft_account)
                                 continue
                             if not password:
-                                backend.show_error("Password is required for new users.")
+                                backend.show_error("ui_error_title", "Password is required for new users.", "ui_press_any_key")
                                 draft_account = self._account_from_values(acc_values, previous=draft_account)
                                 continue
                             if password != password_confirm:
-                                backend.show_error("User password confirmation does not match.")
+                                backend.show_error("ui_error_title", "User password confirmation does not match.", "ui_press_any_key")
                                 draft_account = self._account_from_values(acc_values, previous=draft_account)
                                 continue
 
@@ -307,23 +309,23 @@ class UsersForm(SectionForm):
                             password = acc_values.get("password") or None
                             password_confirm = acc_values.get("password_confirm") or None
                             if not username:
-                                backend.show_error("Username is required.")
+                                backend.show_error("ui_error_title", "Username is required.", "ui_press_any_key")
                                 draft_account = self._account_from_values(acc_values, previous=draft_account)
                                 continue
                             if username == "root":
-                                backend.show_error("Use root password fields for root account.")
+                                backend.show_error("ui_error_title", "Use root password fields for root account.", "ui_press_any_key")
                                 draft_account = self._account_from_values(acc_values, previous=draft_account)
                                 continue
                             if any((a is not current) and ((a.name or "") == username) for a in accounts):
-                                backend.show_error(f"User '{username}' already exists.")
+                                backend.show_error("ui_error_title", f"User '{username}' already exists.", "ui_press_any_key")
                                 draft_account = self._account_from_values(acc_values, previous=draft_account)
                                 continue
                             if password and password != password_confirm:
-                                backend.show_error("User password confirmation does not match.")
+                                backend.show_error("ui_error_title", "User password confirmation does not match.", "ui_press_any_key")
                                 draft_account = self._account_from_values(acc_values, previous=draft_account)
                                 continue
                             if (not password) and (not (current.password or current.password_hash)):
-                                backend.show_error("User must have a password.")
+                                backend.show_error("ui_error_title", "User must have a password.", "ui_press_any_key")
                                 draft_account = self._account_from_values(acc_values, previous=draft_account)
                                 continue
 
@@ -336,10 +338,10 @@ class UsersForm(SectionForm):
                 continue
 
             if draft_root_password and draft_root_password_confirm != draft_root_password:
-                backend.show_error("Root password confirmation does not match.")
+                backend.show_error("ui_error_title", "Root password confirmation does not match.", "ui_press_any_key")
                 continue
             if draft_root_password_confirm and not draft_root_password:
-                backend.show_error("Enter root password before confirmation.")
+                backend.show_error("ui_error_title", "Enter root password before confirmation.", "ui_press_any_key")
                 continue
 
             # Existing root secret also satisfies completeness when password
@@ -351,8 +353,10 @@ class UsersForm(SectionForm):
 
             if not (draft_credentials_file or draft_root_password or existing_root_has_secret):
                 backend.show_error(
+                    "ui_error_title",
                     "Users configuration requires either credentials_file "
-                    "or a root password."
+                    "or a root password.",
+                    "ui_press_any_key",
                 )
                 continue
 
