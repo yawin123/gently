@@ -932,7 +932,12 @@ class CursesBackend(UIBackend):
              "log": [], "expanded": False, "log_scroll": 0}
             for p in phases
         ]
+        self._install_phases.append(
+            {"key": "cleanup", "title": "Cleanup", "status": "pending",
+             "duration_sec": None, "log": [], "expanded": False, "log_scroll": 0}
+        )
         self._install_phase_index: dict[str, int] = {p.key: i for i, p in enumerate(phases)}
+        self._install_phase_index["cleanup"] = len(self._install_phases) - 1
         self._install_queue: queue.Queue = queue.Queue()
         self._install_finished = False
         self._install_selected = 0
@@ -967,7 +972,12 @@ class CursesBackend(UIBackend):
              "log": [], "expanded": False, "log_scroll": 0}
             for pk in phase_keys
         ]
+        self._install_phases.append(
+            {"key": "cleanup", "title": "Cleanup", "status": "pending",
+             "duration_sec": None, "log": [], "expanded": False, "log_scroll": 0}
+        )
         self._install_phase_index = {pk: i for i, pk in enumerate(phase_keys)}
+        self._install_phase_index["cleanup"] = len(self._install_phases) - 1
         self._install_queue = queue.Queue()
         self._install_finished = False
         self._install_selected = 0
@@ -1028,7 +1038,11 @@ class CursesBackend(UIBackend):
                                     ph["log"].append(f"ERROR: {phase_result.error}")
                         for ph in phases:
                             if ph["status"] in ("pending", "running"):
-                                ph["status"] = "done"
+                                # Cleanup phase: check its log for warnings to decide status.
+                                if ph["key"] == "cleanup" and any("WARNING" in line for line in ph["log"]):
+                                    ph["status"] = "failed"
+                                else:
+                                    ph["status"] = "done"
                             # Pin every phase to the bottom so the final redraw
                             # shows the last lines, not a stale mid-log position.
                             ph["log_scroll"] = len(ph["log"])

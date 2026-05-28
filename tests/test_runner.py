@@ -145,6 +145,7 @@ def test_default_install_phases_order():
         "preflight",
         "partition",
         "stage3",
+        "chroot_prep",
         "portage",
         "kernel",
         "system",

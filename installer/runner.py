@@ -68,6 +68,9 @@ class Runner(ABC):
 		# Stack of cleanup actions (LIFO). Phases push entries after reversible actions
 		# (mounts, swap activation, etc.). run_cleanup() drains the stack in reverse order.
 		self.cleanup_stack: list[CleanupEntry] = []
+		# When set, run_shell() wraps all commands with `chroot <path> /bin/bash -lc`.
+		# Set by the chroot_prep phase; cleared automatically by run_cleanup().
+		self.chroot_path: str | None = None
 
 	def push_cleanup(self, description: str, action: Callable[[], None]) -> None:
 		"""Register a cleanup action to be executed on teardown.
@@ -92,6 +95,9 @@ class Runner(ABC):
 		and returned as a list of (description, exception) pairs. Exceptions are
 		also emitted through log_callback if one is set.
 		"""
+		# Clear chroot mode first so all cleanup commands run on the host, not inside
+		# the chroot (umounts, swapoff, etc. must run on the host filesystem).
+		self.chroot_path = None
 		errors: list[tuple[str, Exception]] = []
 		while self.cleanup_stack:
 			entry = self.cleanup_stack.pop()
@@ -178,9 +184,13 @@ class Runner(ABC):
 		env: dict[str, str] | None = None,
 		phase: str | None = None,
 	) -> CommandResult:
+		if self.chroot_path:
+			argv = ["chroot", self.chroot_path, "/bin/bash", "-lc", command]
+		else:
+			argv = ["bash", "-lc", command]
 		return self.run(
 			CommandSpec(
-				argv=["bash", "-lc", command],
+				argv=argv,
 				check=check,
 				cwd=cwd,
 				env=env,
@@ -559,18 +569,20 @@ def default_install_phases() -> list[InstallPhase]:
 	from installer.preflight import execute as preflight_execute
 	from installer.partition import execute as partition_execute
 	from installer.stage3 import execute as stage3_execute
+	from installer.chroot import execute as chroot_prep_execute
 
 	return [
-		InstallPhase("preflight", "Preflight", preflight_execute),
-		InstallPhase("partition", "Partition", partition_execute),
-		InstallPhase("stage3", "Stage3", stage3_execute),
-		InstallPhase("portage", "Portage", _placeholder),
-		InstallPhase("kernel", "Kernel", _placeholder),
-		InstallPhase("system", "System", _placeholder),
-		InstallPhase("services", "Services", _placeholder),
-		InstallPhase("users", "Users", _placeholder),
-		InstallPhase("bootloader", "Bootloader", _placeholder),
-		InstallPhase("packages", "Packages", _placeholder),
+		InstallPhase("preflight",   "Preflight",        preflight_execute),
+		InstallPhase("partition",   "Partition",        partition_execute),
+		InstallPhase("stage3",      "Stage3",           stage3_execute),
+		InstallPhase("chroot_prep", "Chroot Prep",      chroot_prep_execute),
+		InstallPhase("portage",     "Portage",          _placeholder),
+		InstallPhase("kernel",      "Kernel",           _placeholder),
+		InstallPhase("system",      "System",           _placeholder),
+		InstallPhase("services",    "Services",         _placeholder),
+		InstallPhase("users",       "Users",            _placeholder),
+		InstallPhase("bootloader",  "Bootloader",       _placeholder),
+		InstallPhase("packages",    "Packages",         _placeholder),
 	]
 
 
@@ -621,10 +633,6 @@ def run_installation(
 					progress_cb(phase.key, f"Failed {phase.title}: {exc}")
 				if backend is not None:
 					backend.install_progress_update(phase.key, f"FAILED: {exc}")
-					try:
-						backend.install_progress_end(report)
-					except Exception:
-						pass
 				raise InstallPhaseError(
 					phase_key=phase.key,
 					phase_title=phase.title,
@@ -643,19 +651,17 @@ def run_installation(
 				report.phases.append(phase_result)
 				if backend is not None:
 					backend.install_progress_update(phase.key, f"INTERRUPTED ({type(exc).__name__})")
-					try:
-						backend.install_progress_end(report)
-					except Exception:
-						pass
 				raise
-
-		if backend is not None:
-			backend.install_progress_end(report)
 
 		return report
 
 	finally:
 		runner.run_cleanup()
+		if backend is not None:
+			try:
+				backend.install_progress_end(report)
+			except Exception:
+				pass
 
 
 def run_installation_interactive(
