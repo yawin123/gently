@@ -335,14 +335,10 @@ class UsersForm(SectionForm):
                             break
                 continue
 
-            credentials_file = draft_credentials_file
-            root_password = draft_root_password
-            root_password_confirm = draft_root_password_confirm
-
-            if root_password and root_password_confirm != root_password:
+            if draft_root_password and draft_root_password_confirm != draft_root_password:
                 backend.show_error("Root password confirmation does not match.")
                 continue
-            if root_password_confirm and not root_password:
+            if draft_root_password_confirm and not draft_root_password:
                 backend.show_error("Enter root password before confirmation.")
                 continue
 
@@ -353,14 +349,14 @@ class UsersForm(SectionForm):
                 root = next((a for a in accounts if a.name == "root"), None)
                 existing_root_has_secret = bool(root and (root.password or root.password_hash))
 
-            if not (credentials_file or root_password or existing_root_has_secret):
+            if not (draft_credentials_file or draft_root_password or existing_root_has_secret):
                 backend.show_error(
                     "Users configuration requires either credentials_file "
                     "or a root password."
                 )
                 continue
 
-            u.credentials_file = credentials_file
+            u.credentials_file = draft_credentials_file
             u.accounts = accounts
 
             updated = self.apply(GentlyConfig(users=u), values)

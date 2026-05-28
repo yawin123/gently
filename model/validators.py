@@ -1,31 +1,9 @@
 from __future__ import annotations
 
 import re
-import subprocess
 
 from model.config import GentlyConfig
-
-
-def _parse_size_to_bytes(size_expr: str | None) -> int | None:
-    if not size_expr:
-        return None
-    s = size_expr.strip()
-    if not s or s.endswith("%"):
-        return None
-    m = re.fullmatch(r"(\d+(?:\.\d+)?)\s*([kmgtp]?)(?:i?b)?", s, re.IGNORECASE)
-    if not m:
-        return None
-    num = float(m.group(1))
-    unit = m.group(2).upper()
-    multiplier = {
-        "": 1,
-        "K": 1024,
-        "M": 1024 ** 2,
-        "G": 1024 ** 3,
-        "T": 1024 ** 4,
-        "P": 1024 ** 5,
-    }[unit]
-    return int(num * multiplier)
+from util.disk import disk_size_bytes, parse_size_to_bytes
 
 
 def _parse_size_percent(size_expr: str | None) -> float | None:
@@ -36,22 +14,6 @@ def _parse_size_percent(size_expr: str | None) -> float | None:
     if not m:
         return None
     return float(m.group(1))
-
-
-def _disk_size_bytes(device_path: str | None) -> int | None:
-    if not device_path:
-        return None
-    try:
-        out = subprocess.run(
-            ["lsblk", "-b", "-n", "-o", "SIZE", device_path],
-            capture_output=True, text=True, timeout=5,
-        )
-        lines = out.stdout.strip().splitlines()
-        if not lines:
-            return None
-        return int(lines[0].strip())
-    except Exception:
-        return None
 
 
 def validate_coherence(config: GentlyConfig) -> list[str]:
@@ -94,7 +56,7 @@ def validate_coherence(config: GentlyConfig) -> list[str]:
                 percent_total += pct
                 continue
 
-            parsed = _parse_size_to_bytes(part.size)
+            parsed = parse_size_to_bytes(part.size)
             if parsed is None:
                 continue
             allocated += parsed
@@ -106,7 +68,7 @@ def validate_coherence(config: GentlyConfig) -> list[str]:
                 "which exceeds 100%."
             )
 
-        disk_size = _disk_size_bytes(disk.device)
+        disk_size = disk_size_bytes(disk.device)
         if disk_size is None:
             continue
 

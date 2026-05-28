@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import curses
 import curses.ascii
+import queue
 import sys
+import threading
+import time
 from typing import Any
 
 from ui.abstract import UIBackend, FormSpec, FieldSpec
@@ -417,8 +420,6 @@ def _form_loop(
 ) -> None:
     current = 0
     scroll = 0
-    visible = _visible_fields(form, values)
-    n = len(visible)
 
     while True:
         height, width = stdscr.getmaxyx()
@@ -545,10 +546,6 @@ def _summary_loop(
             lines.append(("field", section_key, rendered))
         lines.append(("blank", "", ""))
 
-    actions = [
-        (backend.translate("ui_summary_action_save"), "save_and_exit"),
-        (backend.translate("ui_summary_action_cancel"), "cancel"),
-    ]
     sel = 0
     scroll = 0
 
@@ -826,92 +823,187 @@ class CursesBackend(UIBackend):
 
     # ── Full-screen installation log ───────────────────────
 
+    def run_install(self, config: Any, runner: Any, phases: list | None = None) -> Any:
+        """Run installation with the curses UI on the MAIN thread.
+
+        Preferred entry point when using CursesBackend interactively.
+        Starts run_installation in a background thread and drives the UI
+        on the calling (main) thread, avoiding terminal conflicts.
+        """
+        from installer.runner import run_installation, default_install_phases
+
+        selected = phases if phases is not None else default_install_phases()
+
+        # Pre-initialise phase data with proper titles so install_progress_begin
+        # (called later from the background thread) skips its own setup.
+        self._install_phases = [
+            {"key": p.key, "title": p.title, "status": "pending", "duration_sec": None,
+             "log": [], "expanded": False, "log_scroll": 0}
+            for p in selected
+        ]
+        self._install_phase_index: dict[str, int] = {p.key: i for i, p in enumerate(selected)}
+        self._install_queue: queue.Queue = queue.Queue()
+        self._install_finished = False
+        self._install_selected = 0
+        # No _install_ui_thread — the UI runs in this (main) thread.
+        self.__dict__.pop("_install_ui_thread", None)
+
+        report_box: list[Any] = [None]
+        error_box: list[Any] = [None]
+
+        def _run() -> None:
+            try:
+                report_box[0] = run_installation(
+                    config, runner, phases=selected, backend=self,
+                )
+            except BaseException as exc:  # noqa: BLE001
+                error_box[0] = exc
+
+        install_thread = threading.Thread(target=_run, daemon=True, name="gently-install")
+        install_thread.start()
+
+        try:
+            curses.wrapper(self._install_live_loop)
+        except KeyboardInterrupt:
+            # endwin() already called by curses.wrapper; propagate so the
+            # caller (demo_install.py) can exit the process cleanly.
+            raise
+
+        install_thread.join(timeout=15.0)
+
+        if error_box[0] is not None:
+            raise error_box[0]
+        if report_box[0] is None:
+            from installer.runner import InstallationReport
+            return InstallationReport()
+        return report_box[0]
+
     def install_progress_begin(self, phase_keys: list[str]) -> None:
-        """Initialise phase tracking data. Does NOT open a curses screen."""
-        self._install_phases: list[dict] = [
+        """Initialise phase data. Starts a background UI thread in standalone mode.
+
+        When called from a thread started by run_install(), the queue is already
+        set up — this method becomes a no-op so the pre-initialised data is kept.
+        """
+        if hasattr(self, "_install_queue"):
+            # Queue already set up by run_install(); nothing to do.
+            return
+
+        # Standalone mode: installation runs on the main thread, UI on a daemon thread.
+        self._install_phases = [
             {"key": pk, "title": pk, "status": "pending", "duration_sec": None,
              "log": [], "expanded": False, "log_scroll": 0}
             for pk in phase_keys
         ]
-        self._install_phase_index: dict[str, int] = {pk: i for i, pk in enumerate(phase_keys)}
+        self._install_phase_index = {pk: i for i, pk in enumerate(phase_keys)}
+        self._install_queue = queue.Queue()
+        self._install_finished = False
+        self._install_selected = 0
+        self._install_ui_thread = threading.Thread(
+            target=lambda: curses.wrapper(self._install_live_loop),
+            daemon=True,
+            name="gently-install-ui",
+        )
+        self._install_ui_thread.start()
 
     def install_progress_update(self, phase_key: str, message: str) -> None:
-        """Append a log line. Called from the orchestrator while phases are running."""
-        idx = self._install_phase_index.get(phase_key)
-        if idx is None:
-            return
-        phase = self._install_phases[idx]
-        if phase["status"] == "pending":
-            phase["status"] = "running"
-        phase["log"].append(message)
+        """Send a log line to the live UI thread via the queue."""
+        if hasattr(self, "_install_queue"):
+            self._install_queue.put(("log", phase_key, message))
 
     def install_progress_end(self, report: Any) -> None:
-        """Mark phases as done, then open interactive review screen."""
-        for phase_result in report.phases:
-            idx = self._install_phase_index.get(phase_result.key)
-            if idx is not None:
-                phase = self._install_phases[idx]
-                phase["status"] = "done" if phase_result.status == "ok" else "failed"
-                phase["duration_sec"] = phase_result.duration_sec
-                if phase_result.error:
-                    phase["log"].append(f"ERROR: {phase_result.error}")
-        for phase in self._install_phases:
-            if phase["status"] == "pending":
-                phase["status"] = "done"
+        """Signal the UI thread that installation is done, then wait for the user to close it."""
+        if hasattr(self, "_install_queue"):
+            self._install_queue.put(("done", report))
+        if hasattr(self, "_install_ui_thread"):
+            self._install_ui_thread.join()
 
-        # Open the interactive review screen.
-        self._install_selected = 0
-        def _run(stdscr: curses.window) -> None:
-            _setup_colors()
-            curses.curs_set(0)
-            stdscr.keypad(True)
-            self._install_stdscr = stdscr
-            self._install_loop()
+    # ── Internal: live installation log loop ──────────────
 
-        curses.wrapper(_run)
-
-    # ── Internal: interactive install log loop ─────────────
-
-    def _install_loop(self) -> None:
-        """Interactive review loop shown by install_progress_end."""
-        stdscr = self._install_stdscr
-        selected = 0
+    def _install_live_loop(self, stdscr: curses.window) -> None:
+        """Live installation UI driven by _install_queue. Runs in a background thread."""
+        _setup_colors()
+        curses.curs_set(0)
+        stdscr.keypad(True)
+        stdscr.nodelay(True)  # non-blocking getch while installing
+        self._install_stdscr = stdscr
         phases = self._install_phases
 
         while True:
-            self._install_redraw()
+            # ── Drain incoming queue messages ───────────────────
+            try:
+                while True:
+                    msg = self._install_queue.get_nowait()
+                    kind = msg[0]
+                    if kind == "log":
+                        _, phase_key, message = msg
+                        idx = self._install_phase_index.get(phase_key)
+                        if idx is not None:
+                            ph = phases[idx]
+                            if ph["status"] == "pending":
+                                ph["status"] = "running"
+                            ph["log"].append(message)
+                            # (scroll is handled by _install_redraw)
+                    elif kind == "done":
+                        _, report = msg
+                        for phase_result in report.phases:
+                            idx2 = self._install_phase_index.get(phase_result.key)
+                            if idx2 is not None:
+                                ph = phases[idx2]
+                                ph["status"] = "done" if phase_result.status == "ok" else "failed"
+                                ph["duration_sec"] = phase_result.duration_sec
+                                if phase_result.error:
+                                    ph["log"].append(f"ERROR: {phase_result.error}")
+                        for ph in phases:
+                            if ph["status"] in ("pending", "running"):
+                                ph["status"] = "done"
+                            # Pin every phase to the bottom so the final redraw
+                            # shows the last lines, not a stale mid-log position.
+                            ph["log_scroll"] = len(ph["log"])
+                        self._install_finished = True
+                        # Redraw immediately with the final state BEFORE switching
+                        # to blocking getch. Without this call the display would
+                        # stay frozen on the last pre-done frame until the user
+                        # presses a key.
+                        self._install_redraw()
+                        stdscr.nodelay(False)  # switch to blocking getch for review
+            except queue.Empty:
+                pass
+
+            # ── Keyboard input ───────────────────────────────────
+            selected = self._install_selected
             try:
                 key = stdscr.getch()
             except KeyboardInterrupt:
                 return
 
-            if key in (ord('q'), ord('Q'), 27):
+            if self._install_finished and key in (ord('q'), ord('Q'), 27):
                 return
             elif key == curses.KEY_DOWN:
                 selected = min(len(phases) - 1, selected + 1)
             elif key == curses.KEY_UP:
                 selected = max(0, selected - 1)
             elif key in (curses.KEY_ENTER, 10, 13, ord(' ')):
-                # Enter/Space toggles expansion
-                phase = phases[selected]
-                if phase["status"] != "pending":
-                    phase["expanded"] = not phase["expanded"]
-                    phase["log_scroll"] = 0
+                ph = phases[selected]
+                if ph["status"] != "pending":
+                    ph["expanded"] = not ph["expanded"]
+                    ph["log_scroll"] = max(0, len(ph["log"]) - 1) if ph["expanded"] else 0
             elif key == curses.KEY_RESIZE:
                 pass
-            elif key == curses.KEY_NPAGE:  # PgDn — scroll expanded log down
-                phase = phases[selected]
-                if phase["expanded"] and phase["log"]:
-                    phase["log_scroll"] = min(
-                        len(phase["log"]) - 1,
-                        phase["log_scroll"] + 5,
-                    )
-            elif key == curses.KEY_PPAGE:  # PgUp — scroll expanded log up
-                phase = phases[selected]
-                if phase["expanded"] and phase["log"]:
-                    phase["log_scroll"] = max(0, phase["log_scroll"] - 5)
+            elif key == curses.KEY_NPAGE:
+                ph = phases[selected]
+                if ph["expanded"] and ph["log"]:
+                    ph["log_scroll"] = min(len(ph["log"]) - 1, ph["log_scroll"] + 5)
+            elif key == curses.KEY_PPAGE:
+                ph = phases[selected]
+                if ph["expanded"] and ph["log"]:
+                    ph["log_scroll"] = max(0, ph["log_scroll"] - 5)
 
             self._install_selected = selected
+
+            # ── Redraw ───────────────────────────────────────────
+            self._install_redraw()
+            if not self._install_finished:
+                time.sleep(0.05)  # ~20 fps while installing
 
     def _install_redraw(self) -> None:
         """Redraw the interactive installation log screen."""
@@ -925,7 +1017,10 @@ class CursesBackend(UIBackend):
             stdscr.clear()
 
             # Title bar
-            title = " Gently — Installation complete.  Enter/Space expand/collapse  Esc/q exit"
+            if finished:
+                title = " Gently — Installation complete.  Enter/Space expand/collapse  Esc/q exit"
+            else:
+                title = " Gently — Installing\u2026  Enter/Space expand/collapse"
             stdscr.attron(curses.color_pair(_P_TITLE) | curses.A_BOLD)
             _safe(stdscr, 0, 0, title.ljust(width))
             stdscr.attroff(curses.color_pair(_P_TITLE) | curses.A_BOLD)
@@ -962,9 +1057,12 @@ class CursesBackend(UIBackend):
                 # Expanded log
                 if ph["expanded"] and ph["log"]:
                     log_lines = ph["log"]
-                    log_h = min(len(log_lines), height - row - 2)
-                    log_scroll = ph["log_scroll"]
-                    log_scroll = max(0, min(log_scroll, max(0, len(log_lines) - log_h)))
+                    log_h = max(1, min(len(log_lines), height - row - 2))
+                    if ph["status"] == "running":
+                        # Follow mode: always pin to the last lines while executing.
+                        log_scroll = max(0, len(log_lines) - log_h)
+                    else:
+                        log_scroll = max(0, min(ph["log_scroll"], max(0, len(log_lines) - log_h)))
                     ph["log_scroll"] = log_scroll
                     for j in range(log_h):
                         if row >= height - 1:

@@ -45,13 +45,13 @@ class UIBackend(ABC):
                     "save_and_exit" | "edit:<section_key>"
         """
 
-        @abstractmethod
-        def show_subsection(self, title: str, items: list[tuple[str, dict[str, Any]]]) -> str:
-                """
-                Display an editable subsection with list-like items.
-                Returns one of:
-                    "add" | "done" | "edit:<index>"
-                """
+    @abstractmethod
+    def show_subsection(self, title: str, items: list[tuple[str, dict[str, Any]]]) -> str:
+        """
+        Display an editable subsection with list-like items.
+        Returns one of:
+            "add" | "done" | "edit:<index>"
+        """
 
     @abstractmethod
     def show_progress(self, phase: str, message: str) -> None:

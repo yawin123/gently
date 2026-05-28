@@ -46,9 +46,9 @@ def test_percent_sum_100_is_allowed():
 
 
 def test_explicit_plus_percent_over_disk_fails():
-    old = validators._disk_size_bytes
+    old = validators.disk_size_bytes
     try:
-        validators._disk_size_bytes = lambda _dev: 1000  # bytes
+        validators.disk_size_bytes = lambda _dev: 1000  # bytes
         config = GentlyConfig(disks=[DiskConfig(
             device="/dev/test",
             partition_table="gpt",
@@ -62,7 +62,7 @@ def test_explicit_plus_percent_over_disk_fails():
         assert any("allocates" in e and "exceeds detected disk size" in e for e in errors), errors
         print("PASS  explicit + percentage overflow rejected")
     finally:
-        validators._disk_size_bytes = old
+        validators.disk_size_bytes = old
 
 
 if __name__ == "__main__":

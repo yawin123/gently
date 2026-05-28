@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 import subprocess
 
 from typing import Any
@@ -8,6 +7,7 @@ from typing import Any
 from model.config import DiskConfig, GentlyConfig, PartitionConfig
 from ui.abstract import FieldSpec, FormSpec, UIBackend
 from ui.forms.base import SectionForm
+from util.disk import disk_size_bytes, parse_size_to_bytes
 
 _PARTITION_TABLES = ["gpt", "msdos"]
 _BOOT_MODES       = ["uefi", "bios"]
@@ -34,28 +34,6 @@ def _format_bytes(size: int | None) -> str:
     if idx == 0:
         return f"{int(value)}{units[idx]}"
     return f"{value:.1f}{units[idx]}"
-
-
-def _parse_partition_size(size_expr: str | None) -> int | None:
-    if not size_expr:
-        return None
-    s = size_expr.strip()
-    if not s or s.endswith("%"):
-        return None
-    m = re.fullmatch(r"(\d+(?:\.\d+)?)\s*([kmgtp]?)(?:i?b)?", s, re.IGNORECASE)
-    if not m:
-        return None
-    num = float(m.group(1))
-    unit = m.group(2).upper()
-    multiplier = {
-        "": 1,
-        "K": 1024,
-        "M": 1024 ** 2,
-        "G": 1024 ** 3,
-        "T": 1024 ** 4,
-        "P": 1024 ** 5,
-    }[unit]
-    return int(num * multiplier)
 
 
 def _device_path_from_choice(choice: str | None) -> str | None:
@@ -91,38 +69,22 @@ def _list_devices() -> list[tuple[str, int | None]]:
         return [("/dev/sda", None)]
 
 
-def _disk_size_bytes(device_path: str | None) -> int | None:
-    if not device_path:
-        return None
-    try:
-        out = subprocess.run(
-            ["lsblk", "-b", "-n", "-o", "SIZE", device_path],
-            capture_output=True, text=True, timeout=5,
-        )
-        first = out.stdout.strip().splitlines()
-        if not first:
-            return None
-        return int(first[0].strip())
-    except Exception:
-        return None
-
-
 def _available_partition_bytes(
-    disk_size_bytes: int | None,
+    total_bytes: int | None,
     partitions: list[PartitionConfig],
     editing_index: int | None,
 ) -> int | None:
-    if disk_size_bytes is None:
+    if total_bytes is None:
         return None
     allocated = 0
     for idx, part in enumerate(partitions):
         if editing_index is not None and idx == editing_index:
             continue
-        parsed = _parse_partition_size(part.size)
+        parsed = parse_size_to_bytes(part.size)
         if parsed is None:
             continue
         allocated += parsed
-    return max(0, disk_size_bytes - allocated)
+    return max(0, total_bytes - allocated)
 
 
 def _dedupe_keep_order(values: list[str]) -> list[str]:
@@ -193,7 +155,7 @@ class DisksForm(SectionForm):
         default_device = options[0] if options else None
         if current_device:
             known = next((opt for opt, (path, _sz) in zip(options, devices) if path == current_device), None)
-            default_device = known or _device_choice(current_device, _disk_size_bytes(current_device))
+            default_device = known or _device_choice(current_device, disk_size_bytes(current_device))
             if known is None and default_device not in options:
                 options = [default_device] + options
 
@@ -422,7 +384,7 @@ class DisksForm(SectionForm):
                     break
 
                 if sub_action == "add":
-                    avail = _available_partition_bytes(_disk_size_bytes(disk.device), partitions, None)
+                    avail = _available_partition_bytes(disk_size_bytes(disk.device), partitions, None)
                     part_values = backend.show_form(
                         self._partition_form(
                             PartitionConfig(),
@@ -446,7 +408,7 @@ class DisksForm(SectionForm):
                     if edit_idx < 0 or edit_idx >= len(partitions):
                         continue
 
-                    avail = _available_partition_bytes(_disk_size_bytes(disk.device), partitions, edit_idx)
+                    avail = _available_partition_bytes(disk_size_bytes(disk.device), partitions, edit_idx)
                     part_values = backend.show_form(
                         self._partition_form(
                             partitions[edit_idx],

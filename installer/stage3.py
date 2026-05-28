@@ -6,6 +6,7 @@ from model.config import GentlyConfig
 
 from installer.preflight import PreflightError
 from installer.runner import Runner
+from util.parse import parse_int
 
 
 MIN_STAGE3_FREE_BYTES = 2 * 1024 * 1024 * 1024
@@ -13,16 +14,6 @@ MIN_STAGE3_FREE_BYTES = 2 * 1024 * 1024 * 1024
 
 def _format_bytes_gib(value: int) -> str:
 	return f"{value / (1024 ** 3):.2f} GiB"
-
-
-def _parse_int(text: str, label: str) -> int:
-	value = text.strip()
-	if not value:
-		raise PreflightError(f"{label} returned empty output")
-	try:
-		return int(value)
-	except ValueError as exc:
-		raise PreflightError(f"Could not parse integer from {label}: {value!r}") from exc
 
 
 def _required_stage3_space_bytes(config: GentlyConfig, runner: Runner) -> int:
@@ -37,7 +28,7 @@ def _required_stage3_space_bytes(config: GentlyConfig, runner: Runner) -> int:
 		f"stat -c %s {local_path}",
 		phase="stage3",
 	)
-	file_size = _parse_int(size_result.stdout, "stage3 local tarball size")
+	file_size = parse_int(size_result.stdout, "stage3 local tarball size", PreflightError)
 	return max(MIN_STAGE3_FREE_BYTES, file_size * 3)
 
 
@@ -46,7 +37,7 @@ def ensure_stage3_space(config: GentlyConfig, runner: Runner, mountpoint: str = 
 		f'python3 -c "import shutil; print(shutil.disk_usage({mountpoint!r}).free)"',
 		phase="stage3",
 	)
-	free_bytes = _parse_int(free_result.stdout, f"free space in {mountpoint}")
+	free_bytes = parse_int(free_result.stdout, f"free space in {mountpoint}", PreflightError)
 	required = _required_stage3_space_bytes(config, runner)
 	if free_bytes < required:
 		raise PreflightError(

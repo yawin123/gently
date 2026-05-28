@@ -1,99 +1,222 @@
-id,es_ES
-form_system_title,"Configuración del sistema"
-form_system_subtitle,"Nombre de máquina, zona horaria y configuración regional"
-form_system_hostname_label,"Nombre de máquina"
-form_system_hostname_help,"Nombre de la máquina, ej. micaja"
-form_system_timezone_label,"Zona horaria"
+id,en_ES
+# ── Forms: System ──────────────────────────────────────────
+form_system_title,Configuración del sistema
+form_system_subtitle,"Ajustes de nombre de host, zona horaria y regionales"
+form_system_hostname_label,Nombre de host
+form_system_hostname_help,"Nombre de host de la máquina, ej. mihostbox"
+form_system_timezone_label,Zona horaria
 form_system_timezone_help,"Lista completa: ls /usr/share/zoneinfo"
-form_system_locale_label,Locale
-form_system_locale_help,"Locale principal (también usado en /etc/locale.gen)"
-form_system_extra_locales_label,"Locales adicionales"
-form_system_extra_locales_help,"Locales adicionales a generar (opcional)"
-form_system_keymap_label,"Mapa de teclado"
-form_system_keymap_help,"Mapa de teclado de consola (vconsole)"
+form_system_locale_label,Configuración regional (Locale)
+form_system_locale_help,"Configuración regional principal (también usada en /etc/locale.gen)"
+form_system_extra_locales_label,Configuraciones regionales extra
+form_system_extra_locales_help,"Configuraciones regionales adicionales a generar (opcional)"
+form_system_keymap_label,Mapa de teclado
+form_system_keymap_help,"Mapa de teclado de la consola (vconsole)"
 form_system_lang_label,LANG
 form_system_lang_help,"Valor para la variable de entorno LANG"
-form_stage3_title,"Tarball Stage3"
-form_stage3_subtitle,"Arquitectura, variante y origen del tarball base del sistema"
+# ── Forms: Stage3 ─────────────────────────────────────────
+form_stage3_title,Tarball Stage3
+form_stage3_subtitle,"Arquitectura, variante y origen para el tarball del sistema base"
 form_stage3_arch_label,Arquitectura
 form_stage3_variant_label,Variante
-form_stage3_variant_help,"Sistema de inicio incluido en el tarball stage3"
-form_stage3_mirror_label,"URL del mirror"
-form_stage3_mirror_help,"Mirror de distfiles — Gently descarga el último tarball automáticamente"
-form_stage3_local_path_label,"Ruta local del tarball"
+form_stage3_variant_help,"Sistema de inicio (init) incluido en el tarball stage3"
+form_stage3_mirror_label,URL de réplica (Mirror)
+form_stage3_mirror_help,"Réplica de distfiles — Descarga automáticamente el último tarball"
+form_stage3_local_path_label,Ruta local del tarball
 form_stage3_local_path_help,"Ruta a un tarball stage3 descargado localmente"
-form_stage3_tarball_url_label,"URL del tarball"
+form_stage3_tarball_url_label,URL del tarball
 form_stage3_tarball_url_help,"URL directa a un tarball stage3 específico"
-form_stage3_verify_sig_label,"Verificar firma"
-form_stage3_verify_sig_help,"Verificar la firma GPG del tarball antes de extraerlo"
-form_stage3_sig_url_label,"URL de la firma"
-form_stage3_sig_url_help,"URL al archivo .asc de firma (solo necesario con tarball_url)"
-form_stage3_sig_path_label,"Ruta de la firma"
-form_stage3_sig_path_help,"Ruta local al archivo .asc de firma (solo necesario con local_path)"
-form_disk_disk_title,"Disco — configuración"
+form_stage3_verify_sig_label,Verificar firma
+form_stage3_verify_sig_help,"Verificar la firma GPG del tarball antes de la extracción"
+form_stage3_sig_url_label,URL de la firma
+form_stage3_sig_url_help,"URL a la firma .asc (solo se necesita con tarball_url)"
+form_stage3_sig_path_label,Ruta de la firma
+form_stage3_sig_path_help,"Ruta local a la firma .asc (solo se necesita con local_path)"
+# ── Forms: Disks ──────────────────────────────────────────
+form_disk_disk_title,"Diseño del disco — ajustes del disco"
 form_disk_disk_subtitle,"v1: solo se admite un disco"
 form_disk_device_label,Dispositivo
 form_disk_device_help,"Disco de destino para la instalación. El tamaño se muestra en el selector."
-form_disk_partition_table_label,"Tabla de particiones"
-form_disk_partition_table_help,"gpt se recomienda para sistemas UEFI modernos. msdos es estilo legacy/BIOS."
-form_disk_boot_mode_label,"Modo de arranque"
-form_disk_boot_mode_help,"Selecciona el modo de arranque del firmware para este destino de instalación."
-form_disk_confirm_wipe_label,"Confirmar antes de borrar"
+form_disk_partition_table_label,Tabla de particiones
+form_disk_partition_table_help,"se recomienda gpt para sistemas UEFI modernos. msdos es el estilo heredado/BIOS."
+form_disk_boot_mode_label,Modo de arranque
+form_disk_boot_mode_help,"Seleccione el modo de arranque del firmware para este destino de instalación."
+form_disk_confirm_wipe_label,Confirmar antes de limpiar
 form_disk_confirm_wipe_help,"Solicitar confirmación antes de borrar el disco"
 form_disk_partitions_label,Particiones
-form_disk_partitions_help,"Pulsa Enter para abrir la lista de particiones, después añade/edita/elimina entradas."
+form_disk_partitions_help,"Presione Enter para abrir la lista de particiones, luego agregue/edite/elimine entradas."
 form_disk_partition_action_save,Guardar
 form_disk_partition_action_cancel,Cancelar
 form_disk_partition_action_delete,Eliminar
 form_disk_partition_size_help_base,"ej. 512M, 32G, 100%. Los porcentajes son del tamaño total del disco."
-form_disk_partition_title,"Disco — partición {n}"
+form_disk_partition_size_help_available,". Máximo disponible ahora: "
+form_disk_partition_subtitle_unknown,"Máximo disponible ahora: desconocido"
+form_disk_partition_flags_help,"Las flags sugeridas dependen del contexto. Ejemplos comunes: partición UEFI EFI -> esp (a menudo también boot), BIOS en GPT -> bios_grub, partición swap -> swap."
+form_disk_partition_title,"Diseño del disco — partición {n}"
 form_disk_partition_label_label,Etiqueta
 form_disk_partition_label_help,"Etiqueta de la partición, ej. boot, root, swap"
 form_disk_partition_size_label,Tamaño
-form_disk_partition_fs_label,"Sistema de archivos"
-form_disk_partition_fs_help,"Usa swap para particiones swap, vfat para EFI, ext4 como opción común."
-form_disk_partition_mount_label,"Punto de montaje"
-form_disk_partition_mount_help,"ej. /boot/efi, /, /home  (vacío para swap)"
-form_disk_partition_mount_opts_label,"Opciones de montaje"
+form_disk_partition_fs_label,Sistema de archivos
+form_disk_partition_fs_help,"Use swap para particiones de intercambio, vfat para la partición del sistema EFI, ext4 como valor predeterminado común."
+form_disk_partition_mount_label,Punto de montaje
+form_disk_partition_mount_help,"ej. /boot/efi, /, /home (en blanco para swap)"
+form_disk_partition_mount_opts_label,Opciones de montaje
 form_disk_partition_mount_opts_help,"Opciones opcionales separadas por comas, ej. noatime,nodiratime."
 form_disk_partition_flags_label,Flags
-form_portage_title,"Configuración de Portage"
+# ── Forms: Portage ────────────────────────────────────────
+form_portage_title,Configuración de Portage
 form_portage_subtitle,"Flags del compilador, flags USE y perfil"
-form_kernel_title,"Configuración del kernel"
-form_kernel_method_label,"Método de construcción"
-form_kernel_method_help,"genkernel: automatizado  |  dist-kernel: binario  |  menuconfig/custom: manual (config_path requerido)"
-form_bootloader_title,"Gestor de arranque"
-form_bootloader_type_label,"Tipo de bootloader"
+form_portage_cflags_label,CFLAGS
+form_portage_cflags_help,"GCC CFLAGS, ej. -march=native -O2 -pipe"
+form_portage_cxxflags_label,CXXFLAGS
+form_portage_cxxflags_help,"Dejar en blanco para replicar CFLAGS automáticamente"
+form_portage_makeopts_label,MAKEOPTS
+form_portage_makeopts_help,"Trabajos en paralelo, ej. -j4 o -j$(nproc)"
+form_portage_cpu_flags_label,CPU_FLAGS_X86
+form_portage_cpu_flags_help,"Ejecute cpuid2cpuflags para obtener el valor correcto"
+form_portage_use_label,Flags USE
+form_portage_use_help,"Flags USE globales — confirme con una lista vacía para no establecer ninguna"
+form_portage_accept_keywords_label,ACCEPT_KEYWORDS
+form_portage_accept_keywords_help,"ej. amd64 o ~amd64"
+form_portage_accept_license_label,ACCEPT_LICENSE
+form_portage_accept_license_help,"Grupo de licencias. @FREE = solo software libre"
+form_portage_video_cards_label,VIDEO_CARDS
+form_portage_video_cards_help,"ej. intel nouveau amdgpu"
+form_portage_input_devices_label,INPUT_DEVICES
+form_portage_mirrors_label,GENTOO_MIRRORS
+form_portage_mirrors_help,"URLs de réplicas, ej. https://mirror.leaseweb.com/gentoo/"
+form_portage_profile_label,Perfil
+form_portage_profile_help,"Perfil activo de Portage"
+# ── Forms: Kernel ─────────────────────────────────────────
+form_kernel_title,Configuración del Kernel
+form_kernel_method_label,Método de compilación
+form_kernel_method_help,"genkernel: automatizado  |  dist-kernel: binario  |  menuconfig/custom: manual (requiere config_path)"
+form_kernel_config_path_label,Ruta del archivo de configuración
+form_kernel_config_path_help,"Ruta a un archivo .config (solo se usa con menuconfig o custom)"
+form_kernel_extra_modules_label,Módulos extra
+form_kernel_extra_modules_help,"Módulos de kernel adicionales para incluir obligatoriamente"
+# ── Forms: Bootloader ─────────────────────────────────────
+form_bootloader_title,Gestor de arranque
+form_bootloader_subtitle,"Los campos de GRUB solo se usan cuando type=grub"
+form_bootloader_type_label,Tipo de gestor de arranque
+form_bootloader_type_help,"grub: instalar GRUB2  |  none: omitir la instalación del gestor de arranque"
+form_bootloader_grub_install_disk_label,Disco de instalación de GRUB
+form_bootloader_grub_install_disk_help,"Disco donde instalar GRUB, ej. /dev/sda (en blanco = autodetección)"
+form_bootloader_grub_timeout_label,"Tiempo de espera de GRUB (s)"
+form_bootloader_extra_params_label,Parámetros extra del kernel
+form_bootloader_extra_params_help,"Parámetros adicionales añadidos a la línea de comandos del kernel"
+# ── Forms: Services ───────────────────────────────────────
 form_services_title,Servicios
-form_services_subtitle,"Selecciona el demonio para cada rol del sistema (none = no instalar)"
-form_services_network_label,"Gestor de red"
-form_services_cron_label,"Demonio cron"
-form_services_logging_label,"Demonio de registro"
-form_services_ssh_label,"Servidor SSH"
-form_services_ntp_label,"Demonio NTP"
+form_services_subtitle,"Seleccione el demonio para cada rol del sistema (none = no instalar)"
+form_services_network_label,Gestor de red
+form_services_cron_label,Demonio Cron
+form_services_logging_label,Demonio de registro (Logging)
+form_services_ssh_label,Servidor SSH
+form_services_ntp_label,Demonio NTP
+form_services_firewall_label,Cortafuegos (Firewall)
+form_services_printing_label,Impresión
+form_services_bluetooth_label,Bluetooth
+form_services_extra_enable_label,Servicios extra para activar
+form_services_extra_enable_help,"Nombres de servicios a emerger (emerge) y activar (ej. libvirtd, docker, acpid)"
+# ── Forms: Users ──────────────────────────────────────────
 form_users_title,Usuarios
 form_users_subtitle,"Autenticación de root y usuarios locales adicionales"
-form_users_root_password_label,"Contraseña de root"
-form_users_root_password_confirm_label,"Confirmar contraseña de root"
-form_users_accounts_label,"Cuentas de usuario"
-form_users_account_name_label,"Nombre de usuario"
+form_users_credentials_file_label,Archivo de credenciales
+form_users_credentials_file_help,"Ruta a un archivo con credenciales cifradas previamente (formato shadow)"
+form_users_root_password_label,Contraseña de root
+form_users_root_password_help,"Se cifra automáticamente con SHA-512 antes de guardar"
+form_users_root_password_confirm_label,Confirmar contraseña de root
+form_users_root_password_confirm_help,"Repita la misma contraseña para evitar errores tipográficos"
+form_users_accounts_label,Cuentas de usuario
+form_users_accounts_help,"Presione Enter para agregar/editar/eliminar usuarios que no sean root"
+form_users_account_title,"Usuarios — cuenta {name}"
+form_users_account_name_label,Nombre de usuario
+form_users_account_name_help,"Nombre de la cuenta local, ej. alice"
 form_users_account_password_label,Contraseña
-form_users_account_password_confirm_label,"Confirmar contraseña"
+form_users_account_password_help,"Establecer o cambiar la contraseña. Requerido para cuentas nuevas."
+form_users_account_password_confirm_label,Confirmar contraseña
+form_users_account_password_confirm_help,"Repita la contraseña para evitar errores tipográficos"
 form_users_account_groups_label,Grupos
-form_users_account_shell_label,Shell
-form_packages_title,"Paquetes adicionales"
+form_users_account_groups_help,"Grupos complementarios, ej. wheel audio video"
+form_users_account_shell_label,Intérprete de comandos (Shell)
+form_users_account_shell_help,"Shell de inicio de sesión, ej. /bin/bash"
+form_users_account_comment_label,Comentario
+form_users_account_create_home_label,Crear directorio personal (home)
+form_users_account_ssh_keys_label,Claves SSH autorizadas
+form_users_account_ssh_keys_help,"Claves SSH públicas para este usuario"
+form_users_accounts_subsection_title,"Usuarios — cuentas locales"
+form_users_error_username_required,El nombre de usuario es obligatorio.
+form_users_error_root_use_root_fields,"Use los campos de contraseña de root para la cuenta de root."
+form_users_error_user_exists,"El usuario ''{username}'' ya existe."
+form_users_error_password_required_new,La contraseña es obligatoria para los usuarios nuevos.
+form_users_error_password_mismatch,"La confirmación de la contraseña del usuario no coincide."
+form_users_error_user_needs_password,El usuario debe tener una contraseña.
+form_users_error_root_password_mismatch,"La confirmación de la contraseña de root no coincide."
+form_users_error_confirm_before_password,"Introduzca la contraseña de root antes de la confirmación."
+form_users_error_incomplete,"La configuración de usuarios requiere un archivo de credenciales (credentials_file) o una contraseña de root."
+# ── Forms: Packages ───────────────────────────────────────
+form_packages_title,Paquetes extra
 form_packages_subtitle,"Paquetes adicionales a instalar después del sistema base"
+form_packages_extra_label,Paquetes extra
+form_packages_extra_help,"Paquetes a instalar, ej. vim git htop"
+form_packages_source_only_label,Paquetes solo de código fuente
+form_packages_source_only_help,"Paquetes que siempre deben compilarse desde el código fuente (sin binpkg)"
+# ── Forms: distcc ─────────────────────────────────────────
 form_distcc_title,"distcc (compilación distribuida)"
-form_distcc_subtitle,"Deja enabled=no para omitir distcc por completo"
-form_distcc_enabled_label,"Habilitar distcc"
-form_distcc_hosts_label,Hosts
+form_distcc_subtitle,"Deje enabled=no para omitir distcc por completo"
+form_distcc_enabled_label,Activar distcc
+form_distcc_hosts_label,Equipos (Hosts)
+form_distcc_hosts_help,"Lista de equipos distcc, ej. localhost/4 192.168.1.10/8"
+form_distcc_makeopts_jobs_label,Trabajos MAKEOPTS
+form_distcc_makeopts_jobs_help,"Anular el número de trabajos en paralelo para las compilaciones de distcc"
+form_distcc_pump_mode_label,Modo Pump
+form_distcc_pump_mode_help,"Usar distcc-pump para la distribución de archivos de cabecera (headers)"
+form_distcc_install_on_target_label,Instalar distcc en el destino
+# ── UI: Curses backend ────────────────────────────────────
+ui_list_editor_add_dialog_title,"Agregar {field_label}"
+ui_list_editor_title,"Editar lista: {field_label}"
+ui_list_editor_hint," ↑↓ navegar  A agregar  D eliminar  F2 idioma  F10/Alt+S confirmar  Esc cancelar"
+ui_choice_popup_title," {field_label} "
+ui_choice_popup_hint," ↑↓/RePág/AvPág navegar  Enter seleccionar  Esc cancelar"
+ui_form_hint_default," ↑↓/Tab navegar  Enter editar  Espacio alternar  F2 idioma  F10/Alt+S guardar  Esc cancelar  ? ayuda"
+ui_form_hint_with_delete," ↑↓/Tab navegar  Enter editar  Espacio alternar  F2 idioma  F10 guardar  D eliminar  Esc cancelar  ? ayuda"
 ui_help_popup_title,Ayuda
-ui_summary_title," Resumen de configuración"
-ui_form_hint_default," ↑↓/Tab navegar  Enter editar  Espacio cambiar  F2 idioma  F10/Alt+S guardar  Esc cancelar  ? ayuda"
-ui_form_hint_with_delete," ↑↓/Tab navegar  Enter editar  Espacio cambiar  F2 idioma  F10 guardar  D eliminar  Esc cancelar  ? ayuda"
-ui_choice_popup_hint," ↑↓/PgUp/PgDn navegar  Enter elegir  Esc cancelar"
-ui_list_editor_hint," ↑↓ navegar  A añadir  D eliminar  F10/Alt+S confirmar  Esc cancelar"
-ui_summary_hint," ↑↓ mover  ←→/Tab acción  F2 idioma  Enter confirmar"
-ui_subsection_hint," ↑↓ navegar  Enter elegir  F2 idioma  Esc salir"
+ui_subsection_hint," ↑↓ navegar  Enter seleccionar  F2 idioma  Esc listo"
+ui_subsection_no_items,"(no hay elementos todavía)"
+ui_subsection_add_new,"+ Agregar nuevo"
+ui_subsection_done,Listo
+ui_summary_title," Resumen de la configuración"
+ui_summary_hint," ↑↓ desplazarse  ←→/Tab acción  F2 idioma  Enter confirmar"
+ui_summary_section_selector_label,Seleccione la sección a editar
+ui_summary_action_save,Guardar
+ui_summary_action_cancel,Cancelar
+# ── Validators ────────────────────────────────────────────
+validator_error_multiple_disks,"No se admiten múltiples discos en v1. Solo se procesará la primera entrada de [[disks]]. Elimine las entradas de [[disks]] adicionales para continuar."
+validator_error_uefi_esp_count,"El disco ''{label}'' usa boot_mode=''uefi'' pero tiene {esp_count} partición(es) ESP (se requiere exactamente 1, con flags=[\"esp\"])."
+validator_error_partition_percent_exceeds_100,"El disco ''{label}'' tiene tamaños de partición basados en porcentajes que suman un {percent_total}%, lo cual supera el 100%."
+validator_error_partition_size_exceeds_disk,"El disco ''{label}'' tiene tamaños de partición explícitos que suman {allocated} bytes, lo cual supera el tamaño de disco detectado de {disk_size} bytes."
+validator_error_partition_combined_exceeds_disk,"El disco ''{label}'' asigna {allocated} bytes más el {percent_total}% del tamaño del disco, lo cual supera el tamaño de disco detectado de {disk_size} bytes."
+validator_error_distcc_empty_hosts,"distcc.enabled está activado pero distcc.hosts está vacío. Añada al menos un equipo distccd."
+validator_error_kernel_method_requires_config,"kernel.method=''{method}'' requiere una sección [kernel.custom] con config_path establecido."
+validator_error_grub_requires_section,"bootloader.type=''grub'' requiere una sección [bootloader.grub]."
+validator_error_systemd_logging_conflict,"stage3.variant contiene ''systemd'' pero services.roles.logging es ''{logging}''. systemd usa journald implícitamente; establezca el registro en ''none'' u omítalo."
+validator_error_systemd_ntp_conflict,"stage3.variant contiene ''systemd'' pero services.roles.ntp es ''{ntp}''. systemd usa systemd-timesyncd implícitamente; establezca ntp en ''none'' u omítalo."
+# ── Installer: Preflight ──────────────────────────────────
+preflight_error_empty_output,"{label} devolvió una salida vacía"
+preflight_error_parse_int_failed,"No se pudo procesar el número entero de {label}: {value}"
+preflight_error_disk_device_missing,"Falta el dispositivo de disco en la configuración"
+preflight_error_inspect_mountpoints_failed,"No se pudieron inspeccionar los puntos de montaje para el disco {disk}: {error}"
+preflight_error_disk_mounted,"El disco {disk} tiene sistemas de archivos montados y no se puede reutilizar de forma segura"
+preflight_error_gpg_verification_failed,"
+  {stderr}"
+preflight_error_stage3_url_not_found,"No se pudo determinar la URL del último stage3 desde el índice de autobuilds"
+preflight_error_distcc_not_installed,"distcc está activado pero el cliente distcc no está instalado en el entorno vivo. Instálelo primero (sys-devel/distcc) antes de ejecutar el instalador."
+preflight_error_invalid_distcc_host,"Entrada de equipo distcc inválida: {host}"
+# ── Installer: Stage3 ─────────────────────────────────────
+stage3_error_empty_output,"{label} devolvió una salida vacía"
+stage3_error_parse_int_failed,"No se pudo procesar el número entero de {label}: {value}"
+stage3_error_insufficient_space,"No hay suficiente espacio libre en {mountpoint} para la extracción de stage3. Disponible={available}, requerido={required}"
+# ── App: Summary / Main ───────────────────────────────────
 summary_mark_complete,✓
-summary_section_complete_message,"{section_name} — configuración completa"
+summary_section_complete_message,"{section_name} — configuración completada"
+main_error_unknown_section,"Clave de sección desconocida: {section_key}"

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import subprocess
+import threading
 
 from model.config import GentlyConfig, PortageConfig, PortageProfileConfig
 from ui.abstract import FieldSpec, FormSpec
@@ -56,7 +57,20 @@ def _load_profiles() -> list[str]:
     return _PROFILES_FALLBACK
 
 
-_PROFILES = _load_profiles()
+_PROFILES: list[str] = []
+
+
+def _background_load() -> None:
+    global _PROFILES
+    _PROFILES = _load_profiles()
+
+
+_loader_thread = threading.Thread(target=_background_load, daemon=True)
+_loader_thread.start()
+
+
+def _ensure_loaded() -> None:
+    _loader_thread.join()
 
 
 class PortageForm(SectionForm):
@@ -74,6 +88,7 @@ class PortageForm(SectionForm):
         return p.profile is not None and p.profile.name is not None
 
     def build_form(self, config: GentlyConfig) -> FormSpec:
+        _ensure_loaded()
         p       = config.portage or PortageConfig()
         profile = p.profile or PortageProfileConfig()
         return FormSpec(

@@ -52,6 +52,8 @@ class Runner(ABC):
 	def __init__(self, dry_run: bool = False):
 		self.dry_run = dry_run
 		self.history: list[CommandResult] = []
+		# Optional callback(phase_key, line) called immediately after each command.
+		self.log_callback: Callable[[str, str], None] | None = None
 
 	@property
 	@abstractmethod
@@ -66,7 +68,12 @@ class Runner(ABC):
 		if not spec.argv:
 			raise RunnerError("CommandSpec.argv cannot be empty")
 
+		phase = spec.phase or ""
+		cmd_line = f"$ {' '.join(spec.argv)}"
+
 		if self.dry_run:
+			if self.log_callback:
+				self.log_callback(phase, f"{cmd_line}  [dry-run]")
 			result = CommandResult(
 				argv=spec.argv,
 				returncode=0,
@@ -80,8 +87,22 @@ class Runner(ABC):
 			self.history.append(result)
 			return result
 
-		result = self._execute(spec)
+		# Emit the command line BEFORE executing so the user sees it immediately.
+		if self.log_callback:
+			self.log_callback(phase, cmd_line)
+
+		# Use streaming execution (line-by-line) when available and a log callback is
+		# set, so the user sees output in real time instead of in one batch at the end.
+		_stream = getattr(self, "_execute_streaming", None)
+		if self.log_callback and _stream is not None:
+			result = _stream(spec, lambda line: self.log_callback(phase, f"  {line}"))
+		else:
+			result = self._execute(spec)
+			if self.log_callback and result.stdout.strip():
+				for line in result.stdout.strip().splitlines():
+					self.log_callback(phase, f"  {line}")
 		self.history.append(result)
+
 		if spec.check and result.returncode != 0:
 			raise CommandExecutionError(spec, result)
 		return result
@@ -123,20 +144,76 @@ class LocalRunner(Runner):
 
 	def _execute(self, spec: CommandSpec) -> CommandResult:
 		started = time.time()
-		cp = self._run_impl(
-			spec.argv,
-			cwd=spec.cwd,
-			env=spec.env,
-			input=spec.input_text,
-			capture_output=True,
-			text=True,
-			check=False,
-		)
+		# When there is no input to pipe, use DEVNULL so subprocesses (especially
+		# bash -lc) cannot detect a tty on stdin, activate job control, and call
+		# tcsetattr while curses owns the terminal.
+		if spec.input_text is not None:
+			cp = self._run_impl(
+				spec.argv,
+				cwd=spec.cwd,
+				env=spec.env,
+				input=spec.input_text,
+				capture_output=True,
+				text=True,
+				check=False,
+			)
+		else:
+			cp = self._run_impl(
+				spec.argv,
+				cwd=spec.cwd,
+				env=spec.env,
+				stdin=subprocess.DEVNULL,
+				capture_output=True,
+				text=True,
+				check=False,
+			)
 		return CommandResult(
 			argv=spec.argv,
 			returncode=cp.returncode,
 			stdout=cp.stdout,
 			stderr=cp.stderr,
+			duration_sec=time.time() - started,
+			transport=self.transport,
+			phase=spec.phase,
+		)
+
+	def _execute_streaming(
+		self,
+		spec: CommandSpec,
+		line_cb: Callable[[str], None],
+	) -> CommandResult:
+		"""Execute a command, calling line_cb for each stdout line as it arrives.
+
+		This uses subprocess.Popen so output is streamed in real time instead of
+		being captured and emitted in one batch when the process exits.
+		"""
+		started = time.time()
+		stdin_src: int = subprocess.DEVNULL if spec.input_text is None else subprocess.PIPE
+		proc = subprocess.Popen(
+			spec.argv,
+			cwd=spec.cwd,
+			env=spec.env,
+			stdin=stdin_src,
+			stdout=subprocess.PIPE,
+			stderr=subprocess.PIPE,
+			text=True,
+		)
+		if spec.input_text is not None and proc.stdin is not None:
+			proc.stdin.write(spec.input_text)
+			proc.stdin.close()
+		stdout_lines: list[str] = []
+		if proc.stdout is not None:
+			for raw_line in proc.stdout:
+				line = raw_line.rstrip("\n")
+				stdout_lines.append(line)
+				line_cb(line)
+		proc.wait()
+		stderr = proc.stderr.read() if proc.stderr is not None else ""
+		return CommandResult(
+			argv=spec.argv,
+			returncode=proc.returncode,
+			stdout="\n".join(stdout_lines),
+			stderr=stderr,
 			duration_sec=time.time() - started,
 			transport=self.transport,
 			phase=spec.phase,
@@ -249,14 +326,24 @@ class SshRunner(Runner):
 		ssh_cmd, env = self._with_auth(ssh_cmd)
 
 		started = time.time()
-		cp = self._run_impl(
-			ssh_cmd,
-			env=env,
-			input=spec.input_text,
-			capture_output=True,
-			text=True,
-			check=False,
-		)
+		if spec.input_text is not None:
+			cp = self._run_impl(
+				ssh_cmd,
+				env=env,
+				input=spec.input_text,
+				capture_output=True,
+				text=True,
+				check=False,
+			)
+		else:
+			cp = self._run_impl(
+				ssh_cmd,
+				env=env,
+				stdin=subprocess.DEVNULL,
+				capture_output=True,
+				text=True,
+				check=False,
+			)
 		return CommandResult(
 			argv=spec.argv,
 			returncode=cp.returncode,
@@ -363,6 +450,7 @@ def run_installation(
 
 	if backend is not None:
 		backend.install_progress_begin([p.key for p in selected])
+		runner.log_callback = backend.install_progress_update
 
 	for phase in selected:
 		started = time.time()
@@ -372,17 +460,6 @@ def run_installation(
 			backend.install_progress_update(phase.key, f"Starting {phase.title}")
 		try:
 			phase.execute(config, runner)
-			# Log every command that was executed during this phase.
-			if backend is not None:
-				for cmd_result in runner.history:
-					if cmd_result.phase == phase.key:
-						backend.install_progress_update(
-							phase.key,
-							f"$ {' '.join(cmd_result.argv)}{'  [dry-run]' if cmd_result.skipped else ''}",
-						)
-						if not cmd_result.skipped and cmd_result.stdout.strip():
-							for out_line in cmd_result.stdout.strip().splitlines():
-								backend.install_progress_update(phase.key, f"  {out_line}")
 			phase_result = InstallPhaseResult(
 				key=phase.key,
 				title=phase.title,
@@ -417,6 +494,23 @@ def run_installation(
 				cause=exc,
 				partial_report=report,
 			) from exc
+		except BaseException as exc:
+			# KeyboardInterrupt and similar — still notify the UI before propagating.
+			phase_result = InstallPhaseResult(
+				key=phase.key,
+				title=phase.title,
+				status="error",
+				duration_sec=time.time() - started,
+				error=type(exc).__name__,
+			)
+			report.phases.append(phase_result)
+			if backend is not None:
+				backend.install_progress_update(phase.key, f"INTERRUPTED ({type(exc).__name__})")
+				try:
+					backend.install_progress_end(report)
+				except Exception:
+					pass
+			raise
 
 	if backend is not None:
 		backend.install_progress_end(report)

@@ -69,11 +69,20 @@ def _extract_list_field(val: Any) -> list[str] | None:
 
 
 # ---------------------------------------------------------------------------
+# to_dict() mixin
+# ---------------------------------------------------------------------------
+
+class _ToDictMixin:
+    def to_dict(self) -> dict:
+        return _to_dict(self) or {}
+
+
+# ---------------------------------------------------------------------------
 # Dataclasses
 # ---------------------------------------------------------------------------
 
 @dataclass
-class SystemConfig:
+class SystemConfig(_ToDictMixin):
     hostname:  str | None       = field(default=None)
     timezone:  str | None       = field(default=None)
     locale:    str | None       = field(default=None)
@@ -81,12 +90,9 @@ class SystemConfig:
     keymap:    str | None       = field(default=None)
     lang:      str | None       = field(default=None)
 
-    def to_dict(self) -> dict:
-        return _to_dict(self) or {}
-
 
 @dataclass
-class Stage3Config:
+class Stage3Config(_ToDictMixin):
     arch:               str | None = field(default=None)
     variant:            str | None = field(default=None)
     mirror:             str | None = field(default=None)
@@ -96,12 +102,9 @@ class Stage3Config:
     signature_path:     str | None = field(default=None)
     verify_signature:   bool       = True
 
-    def to_dict(self) -> dict:
-        return _to_dict(self) or {}
-
 
 @dataclass
-class PartitionConfig:
+class PartitionConfig(_ToDictMixin):
     label:         str | None       = field(default=None)
     size:          str | None       = field(default=None)
     filesystem:    str | None       = field(default=None)
@@ -111,12 +114,9 @@ class PartitionConfig:
     luks:          bool | None      = field(default=None)
     luks_label:    str | None       = field(default=None)
 
-    def to_dict(self) -> dict:
-        return _to_dict(self) or {}
-
 
 @dataclass
-class DiskConfig:
+class DiskConfig(_ToDictMixin):
     id:              str | None            = field(default=None)
     device:          str | None            = field(default=None)
     partition_table: str | None            = field(default=None)
@@ -124,12 +124,9 @@ class DiskConfig:
     confirm_wipe:    bool                  = True
     partitions:      list[PartitionConfig] = field(default_factory=list)
 
-    def to_dict(self) -> dict:
-        return _to_dict(self) or {}
-
 
 @dataclass
-class PortagePackagesConfig:
+class PortagePackagesConfig(_ToDictMixin):
     use:              dict[str, list[str]] | None = field(default=None)
     accept_keywords:  dict[str, list[str]] | None = field(default=None)
     license:          dict[str, list[str]] | None = field(default=None)
@@ -137,30 +134,21 @@ class PortagePackagesConfig:
     unmask:           list[str] | None            = field(default=None)
     env:              dict[str, str] | None       = field(default=None)
 
-    def to_dict(self) -> dict:
-        return _to_dict(self) or {}
-
 
 @dataclass
-class PortageRepoConfig:
+class PortageRepoConfig(_ToDictMixin):
     name:      str | None = field(default=None)
     sync_type: str | None = field(default=None)
     sync_uri:  str | None = field(default=None)
 
-    def to_dict(self) -> dict:
-        return _to_dict(self) or {}
-
 
 @dataclass
-class PortageProfileConfig:
+class PortageProfileConfig(_ToDictMixin):
     name: str | None = field(default=None)
 
-    def to_dict(self) -> dict:
-        return _to_dict(self) or {}
-
 
 @dataclass
-class PortageConfig:
+class PortageConfig(_ToDictMixin):
     cflags:          str | None             = field(default=None)
     cxxflags:        str | None             = field(default=None)
     makeopts:        str | None             = field(default=None)
@@ -179,69 +167,48 @@ class PortageConfig:
     repos:           list[PortageRepoConfig] | None = field(default=None)
     packages:        PortagePackagesConfig | None   = field(default=None)
 
-    def to_dict(self) -> dict:
-        return _to_dict(self) or {}
-
 
 @dataclass
-class KernelCustomConfig:
+class KernelCustomConfig(_ToDictMixin):
     config_path: str | None = field(default=None)
 
-    def to_dict(self) -> dict:
-        return _to_dict(self) or {}
-
 
 @dataclass
-class KernelConfig:
+class KernelConfig(_ToDictMixin):
     method:        str | None              = field(default=None)
     extra_modules: list[str] | None        = field(default=None)
     custom:        KernelCustomConfig | None = field(default=None)
 
-    def to_dict(self) -> dict:
-        return _to_dict(self) or {}
-
 
 @dataclass
-class BootloaderGrubConfig:
+class BootloaderGrubConfig(_ToDictMixin):
     platforms:    list[str] | None = field(default=None)
     install_disk: str | None       = field(default=None)
     timeout:      int | None       = field(default=None)
     cmdline_extra: list[str] | None = field(default=None)
 
-    def to_dict(self) -> dict:
-        return _to_dict(self) or {}
-
 
 @dataclass
-class BootloaderConfig:
+class BootloaderConfig(_ToDictMixin):
     type: str | None                  = field(default=None)
     grub: BootloaderGrubConfig | None = field(default=None)
 
-    def to_dict(self) -> dict:
-        return _to_dict(self) or {}
-
 
 @dataclass
-class NetworkInterfaceConfig:
+class NetworkInterfaceConfig(_ToDictMixin):
     mode:    str | None       = field(default=None)
     address: str | None       = field(default=None)
     gateway: str | None       = field(default=None)
     dns:     list[str] | None = field(default=None)
 
-    def to_dict(self) -> dict:
-        return _to_dict(self) or {}
-
 
 @dataclass
-class NetworkConfig:
+class NetworkConfig(_ToDictMixin):
     interfaces: dict[str, NetworkInterfaceConfig] | None = field(default=None)
 
-    def to_dict(self) -> dict:
-        return _to_dict(self) or {}
-
 
 @dataclass
-class ServicesRolesConfig:
+class ServicesRolesConfig(_ToDictMixin):
     cron:      str | None = field(default=None)
     logging:   str | None = field(default=None)
     network:   str | None = field(default=None)
@@ -251,30 +218,21 @@ class ServicesRolesConfig:
     printing:  str | None = field(default=None)
     bluetooth: str | None = field(default=None)
 
-    def to_dict(self) -> dict:
-        return _to_dict(self) or {}
-
 
 @dataclass
-class ServicesExtraConfig:
+class ServicesExtraConfig(_ToDictMixin):
     enable: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> dict:
-        return _to_dict(self) or {}
-
 
 @dataclass
-class ServicesConfig:
+class ServicesConfig(_ToDictMixin):
     roles:   ServicesRolesConfig | None  = field(default=None)
     network: NetworkConfig | None        = field(default=None)
     extra:   ServicesExtraConfig | None  = field(default=None)
 
-    def to_dict(self) -> dict:
-        return _to_dict(self) or {}
-
 
 @dataclass
-class UserAccountConfig:
+class UserAccountConfig(_ToDictMixin):
     name:                str | None       = field(default=None)
     password:            str | None       = field(default=None)
     password_hash:       str | None       = field(default=None)
@@ -284,31 +242,22 @@ class UserAccountConfig:
     create_home:         bool | None      = field(default=None)
     ssh_authorized_keys: list[str] | None = field(default=None)
 
-    def to_dict(self) -> dict:
-        return _to_dict(self) or {}
-
 
 @dataclass
-class UsersConfig:
+class UsersConfig(_ToDictMixin):
     credentials_file:        str | None            = field(default=None)
     credentials_file_shadow: str | None            = field(default=None)
     accounts:                list[UserAccountConfig] = field(default_factory=list)
 
-    def to_dict(self) -> dict:
-        return _to_dict(self) or {}
-
 
 @dataclass
-class PackagesConfig:
+class PackagesConfig(_ToDictMixin):
     extra:       list[str]       = field(default_factory=list)
     source_only: list[str] | None = field(default=None)
 
-    def to_dict(self) -> dict:
-        return _to_dict(self) or {}
-
 
 @dataclass
-class DistccConfig:
+class DistccConfig(_ToDictMixin):
     enabled:           bool            = False
     hosts:             list[str] | None = field(default=None)
     makeopts_jobs:     int | None       = field(default=None)
@@ -317,12 +266,9 @@ class DistccConfig:
     port:              int | None       = field(default=None)
     distcc_dir:        str | None       = field(default=None)
 
-    def to_dict(self) -> dict:
-        return _to_dict(self) or {}
-
 
 @dataclass
-class GentlyConfig:
+class GentlyConfig(_ToDictMixin):
     system:     SystemConfig | None     = field(default=None)
     stage3:     Stage3Config | None     = field(default=None)
     disks:      list[DiskConfig]        = field(default_factory=list)
@@ -333,9 +279,6 @@ class GentlyConfig:
     users:      UsersConfig | None      = field(default=None)
     packages:   PackagesConfig | None   = field(default=None)
     distcc:     DistccConfig | None     = field(default=None)
-
-    def to_dict(self) -> dict:
-        return _to_dict(self) or {}
 
 
 # ---------------------------------------------------------------------------
