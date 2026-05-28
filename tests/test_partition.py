@@ -105,6 +105,16 @@ class _FakeRunner:
             return True
         return self.confirm_callback(message, yes_key, no_key)
 
+    # Cleanup stack — mirrors the Runner interface so partition tests keep working.
+    def push_cleanup(self, description: str, action) -> None:
+        pass  # no-op in tests: we don't need to verify cleanup registration here
+
+    def pop_cleanup(self):
+        return None
+
+    def run_cleanup(self):
+        return []
+
 
 # ---------------------------------------------------------------------------
 # Unit tests — pure helpers

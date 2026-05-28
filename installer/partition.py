@@ -269,6 +269,11 @@ def _mount_partitions(
 			f"mount -o {shlex.quote(opts)} {shlex.quote(pdev)} {shlex.quote(target)}",
 			phase=PHASE_KEY,
 		)
+		_target = target  # capture loop variable
+		runner.push_cleanup(
+			f"umount {_target}",
+			lambda t=_target: runner.run_shell(f"umount -l {shlex.quote(t)}", check=False, phase="cleanup"),
+		)
 
 
 def _activate_swap(disk: DiskConfig, runner: Runner) -> None:
@@ -276,6 +281,11 @@ def _activate_swap(disk: DiskConfig, runner: Runner) -> None:
 		if (part.filesystem or "").lower() == "swap":
 			pdev = _partition_device(disk.device, i)  # type: ignore[arg-type]
 			runner.run_shell(f"swapon {shlex.quote(pdev)}", phase=PHASE_KEY)
+			_pdev = pdev  # capture loop variable
+			runner.push_cleanup(
+				f"swapoff {_pdev}",
+				lambda d=_pdev: runner.run_shell(f"swapoff {shlex.quote(d)}", check=False, phase="cleanup"),
+			)
 
 
 # ---------------------------------------------------------------------------

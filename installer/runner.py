@@ -584,74 +584,75 @@ def run_installation(
 	selected = phases if phases is not None else default_install_phases()
 	report = InstallationReport()
 
-	if backend is not None:
-		backend.install_progress_begin([p.key for p in selected])
-		runner.log_callback = backend.install_progress_update
-
-	for phase in selected:
-		started = time.time()
-		if progress_cb:
-			progress_cb(phase.key, f"Starting {phase.title}")
+	try:
 		if backend is not None:
-			backend.install_progress_update(phase.key, f"Starting {phase.title}")
-		try:
-			phase.execute(config, runner)
-			phase_result = InstallPhaseResult(
-				key=phase.key,
-				title=phase.title,
-				status="ok",
-				duration_sec=time.time() - started,
-			)
-			report.phases.append(phase_result)
-			if progress_cb:
-				progress_cb(phase.key, f"Completed {phase.title}")
-			if backend is not None:
-				backend.install_progress_update(phase.key, f"Completed {phase.title}")
-		except Exception as exc:
-			phase_result = InstallPhaseResult(
-				key=phase.key,
-				title=phase.title,
-				status="error",
-				duration_sec=time.time() - started,
-				error=str(exc),
-			)
-			report.phases.append(phase_result)
-			if progress_cb:
-				progress_cb(phase.key, f"Failed {phase.title}: {exc}")
-			if backend is not None:
-				backend.install_progress_update(phase.key, f"FAILED: {exc}")
-				try:
-					backend.install_progress_end(report)
-				except Exception:
-					pass
-			raise InstallPhaseError(
-				phase_key=phase.key,
-				phase_title=phase.title,
-				cause=exc,
-				partial_report=report,
-			) from exc
-		except BaseException as exc:
-			# KeyboardInterrupt and similar — still notify the UI before propagating.
-			phase_result = InstallPhaseResult(
-				key=phase.key,
-				title=phase.title,
-				status="error",
-				duration_sec=time.time() - started,
-				error=type(exc).__name__,
-			)
-			report.phases.append(phase_result)
-			if backend is not None:
-				backend.install_progress_update(phase.key, f"INTERRUPTED ({type(exc).__name__})")
-				try:
-					backend.install_progress_end(report)
-				except Exception:
-					pass
-			raise
+			backend.install_progress_begin([p.key for p in selected])
+			runner.log_callback = backend.install_progress_update
 
-	if backend is not None:
-		backend.install_progress_end(report)
+		for phase in selected:
+			started = time.time()
+			if progress_cb:
+				progress_cb(phase.key, f"Starting {phase.title}")
+			if backend is not None:
+				backend.install_progress_update(phase.key, f"Starting {phase.title}")
+			try:
+				phase.execute(config, runner)
+				phase_result = InstallPhaseResult(
+					key=phase.key,
+					title=phase.title,
+					status="ok",
+					duration_sec=time.time() - started,
+				)
+				report.phases.append(phase_result)
+				if progress_cb:
+					progress_cb(phase.key, f"Completed {phase.title}")
+				if backend is not None:
+					backend.install_progress_update(phase.key, f"Completed {phase.title}")
+			except Exception as exc:
+				phase_result = InstallPhaseResult(
+					key=phase.key,
+					title=phase.title,
+					status="error",
+					duration_sec=time.time() - started,
+					error=str(exc),
+				)
+				report.phases.append(phase_result)
+				if progress_cb:
+					progress_cb(phase.key, f"Failed {phase.title}: {exc}")
+				if backend is not None:
+					backend.install_progress_update(phase.key, f"FAILED: {exc}")
+					try:
+						backend.install_progress_end(report)
+					except Exception:
+						pass
+				raise InstallPhaseError(
+					phase_key=phase.key,
+					phase_title=phase.title,
+					cause=exc,
+					partial_report=report,
+				) from exc
+			except BaseException as exc:
+				# KeyboardInterrupt and similar — still notify the UI before propagating.
+				phase_result = InstallPhaseResult(
+					key=phase.key,
+					title=phase.title,
+					status="error",
+					duration_sec=time.time() - started,
+					error=type(exc).__name__,
+				)
+				report.phases.append(phase_result)
+				if backend is not None:
+					backend.install_progress_update(phase.key, f"INTERRUPTED ({type(exc).__name__})")
+					try:
+						backend.install_progress_end(report)
+					except Exception:
+						pass
+				raise
 
-	return report
+		if backend is not None:
+			backend.install_progress_end(report)
+
+		return report
 
 	finally:
 		runner.run_cleanup()
