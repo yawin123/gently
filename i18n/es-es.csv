@@ -229,6 +229,17 @@ preflight_error_invalid_distcc_host,"Entrada de equipo distcc inválida: {host}"
 stage3_error_empty_output,"{label} devolvió una salida vacía"
 stage3_error_parse_int_failed,"No se pudo procesar el número entero de {label}: {value}"
 stage3_error_insufficient_space,"No hay suficiente espacio libre en {mountpoint} para la extracción de stage3. Disponible={available}, requerido={required}"
+stage3_error_no_tarball,"No hay ruta de tarball stage3 disponible. Ejecute preflight primero o establezca stage3.local_path."
+# ── Installer: Partition ──────────────────────────────
+partition_confirm_wipe_msg,"El disco {device} será BORRADO COMPLETAMENTE. Todos los datos existentes se perderán de forma permanente. ¿Continuar?"
+partition_error_cancelled,"Particionado de {device} cancelado por el usuario."
+partition_error_disk_missing,"Falta el dispositivo de disco en la configuración"
+partition_error_empty_size,"Expresión de tamaño de partición vacía"
+partition_error_unrecognised_size,"Expresión de tamaño de partición no reconocida: {expr}"
+partition_error_missing_size,"Partición {n} (label={label!r}) sin tamaño definido"
+partition_error_missing_device,"El dispositivo de partición {device} no existe tras el particionado. Compruebe si partprobe/udevadm se asentaron correctamente."
+partition_error_fs_type_mismatch,"Partición {device}: tipo de sistema de archivos esperado '{expected}', blkid reporta '{actual}'."
+partition_error_not_mounted,"El punto de montaje {target} ({device}) no está montado tras el comando mount."
 # ── App: Summary / Main ───────────────────────────────────
 summary_mark_complete,✓
 summary_section_complete_message,"{section_name} — configuración completada"

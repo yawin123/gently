@@ -229,6 +229,17 @@ preflight_error_invalid_distcc_host,"Invalid distcc host entry: {host}"
 stage3_error_empty_output,"{label} returned empty output"
 stage3_error_parse_int_failed,"Could not parse integer from {label}: {value}"
 stage3_error_insufficient_space,"Not enough free space in {mountpoint} for stage3 extraction. Available={available}, required={required}"
+stage3_error_no_tarball,"No stage3 tarball path is available. Run preflight first or set stage3.local_path."
+# ── Installer: Partition ──────────────────────────────
+partition_confirm_wipe_msg,"Disk {device} will be COMPLETELY WIPED. All existing data will be permanently lost. Continue?"
+partition_error_cancelled,"Partitioning of {device} cancelled by user."
+partition_error_disk_missing,"Disk device is missing in configuration"
+partition_error_empty_size,"Empty partition size expression"
+partition_error_unrecognised_size,"Unrecognised partition size expression: {expr}"
+partition_error_missing_size,"Partition {n} (label={label!r}) has no size defined"
+partition_error_missing_device,"Partition device {device} does not exist after partitioning. Check whether partprobe/udevadm settled correctly."
+partition_error_fs_type_mismatch,"Partition {device}: expected filesystem type '{expected}', blkid reports '{actual}'."
+partition_error_not_mounted,"Mountpoint {target} ({device}) is not mounted after mount command."
 # ── App: Summary / Main ───────────────────────────────────
 summary_mark_complete,✓
 summary_section_complete_message,"{section_name} — configuration complete"

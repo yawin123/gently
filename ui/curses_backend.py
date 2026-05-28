@@ -1039,6 +1039,17 @@ class CursesBackend(UIBackend):
                         # presses a key.
                         self._install_redraw()
                         stdscr.nodelay(False)  # switch to blocking getch for review
+                    elif kind == "confirm":
+                        _, message, yes_label, no_label, resp_q = msg
+                        # The confirm dialog must run on this thread (main/curses).
+                        # Switch to blocking input for the dialog, then restore.
+                        stdscr.nodelay(False)
+                        answer = _confirm_loop(stdscr, message, yes_label, no_label)
+                        if not self._install_finished:
+                            stdscr.nodelay(True)
+                        resp_q.put(answer)
+                        # Redraw to erase the popup.
+                        self._install_redraw()
             except queue.Empty:
                 pass
 
@@ -1165,13 +1176,27 @@ class CursesBackend(UIBackend):
         curses.wrapper(_run)
 
     def show_confirm(self, message: str, yes_key: str, no_key: str) -> bool:
+        yes_label = self.translate(yes_key)
+        no_label = self.translate(no_key)
+
+        # If an active install session is running, the main thread already owns
+        # the curses session inside _install_live_loop.  Calling curses.wrapper()
+        # from this (background) thread would call endwin() on exit and destroy
+        # the main thread's session, causing the UI to freeze.  Route through
+        # _install_queue instead so the confirm dialog runs on the main thread.
+        if hasattr(self, "_install_queue"):
+            resp_q: queue.Queue[bool] = queue.Queue()
+            self._install_queue.put(("confirm", message, yes_label, no_label, resp_q))
+            return resp_q.get()  # blocks until main thread responds
+
+        # Pre-install or standalone: safe to open our own curses session.
         result = [False]
 
         def _run(stdscr: curses.window) -> None:
             _setup_colors()
             curses.curs_set(0)
             stdscr.keypad(True)
-            result[0] = _confirm_loop(stdscr, message, self.translate(yes_key), self.translate(no_key))
+            result[0] = _confirm_loop(stdscr, message, yes_label, no_label)
 
         curses.wrapper(_run)
         return result[0]
