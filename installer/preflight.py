@@ -38,7 +38,6 @@ def _check_connectivity(runner: Runner) -> None:
 		"ping -c 1 8.8.8.8 >/dev/null",
 		phase=PHASE_KEY,
 	)
-	runner.run_shell("bash /tmp/tmp.sh", phase=PHASE_KEY, check=False)
 
 
 def _check_disks(config: GentlyConfig, runner: Runner) -> None:

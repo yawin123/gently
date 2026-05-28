@@ -15,21 +15,39 @@ sys.path.insert(0, _ROOT)
 sys.path.insert(0, os.path.join(_ROOT, "vendor"))
 
 from installer.preflight import PreflightError
-from installer.stage3 import ensure_stage3_space
+from installer.stage3 import ensure_stage3_space, execute, Stage3Error
+from installer.partition import FSTAB_STAGING_PATH, MOUNTPOINT
 from installer.runner import CommandExecutionError, CommandResult, CommandSpec
 from model.config import DiskConfig, GentlyConfig, Stage3Config
+import i18n as _i18n
 
 
 class _FakeRunner:
     transport = "local"
 
-    def __init__(self, *, free_bytes: int, readable_paths: set[str] | None = None, file_sizes: dict[str, int] | None = None):
+    def __init__(
+        self,
+        *,
+        dry_run: bool = False,
+        free_bytes: int = 10 * 1024 ** 3,
+        readable_paths: set[str] | None = None,
+        file_sizes: dict[str, int] | None = None,
+    ):
+        self.dry_run = dry_run
         self.free_bytes = free_bytes
         self.readable_paths = readable_paths if readable_paths is not None else set()
         self.file_sizes = dict(file_sizes or {})
         self.shell_commands: list[str] = []
+        self.log_callback = None
+        self.confirm_callback = None
 
     def run_shell(self, command: str, check: bool = True, cwd: str | None = None, env: dict[str, str] | None = None, phase: str | None = None) -> CommandResult:
+        if self.dry_run:
+            return CommandResult(
+                argv=["bash", "-lc", command],
+                returncode=0, stdout="", stderr="",
+                duration_sec=0.0, transport=self.transport, phase=phase,
+            )
         self.shell_commands.append(command)
 
         rc = 0
@@ -97,8 +115,99 @@ def test_stage3_space_rejects_too_small_mountpoint():
     raise AssertionError("Expected PreflightError")
 
 
+# ---------------------------------------------------------------------------
+# Tests for execute()
+# ---------------------------------------------------------------------------
+
+def _default_runner() -> _FakeRunner:
+    return _FakeRunner(
+        free_bytes=10 * 1024 ** 3,
+        readable_paths={"/tmp/stage3.tar.xz"},
+        file_sizes={"/tmp/stage3.tar.xz": 100 * 1024 * 1024},
+    )
+
+
+def _config_with_tarball(path: str = "/tmp/stage3.tar.xz") -> GentlyConfig:
+    return GentlyConfig(stage3=Stage3Config(local_path=path))
+
+
+def test_execute_raises_when_no_tarball():
+    config = GentlyConfig(stage3=Stage3Config())  # local_path=None
+    runner = _default_runner()
+    try:
+        execute(config, runner)
+    except Stage3Error as exc:
+        assert str(exc) == _i18n.t("stage3_error_no_tarball"), repr(str(exc))
+        print("PASS  execute raises Stage3Error when local_path is not set")
+        return
+    raise AssertionError("Expected Stage3Error")
+
+
+def test_execute_raises_when_stage3_is_none():
+    config = GentlyConfig()  # stage3=None
+    runner = _default_runner()
+    try:
+        execute(config, runner)
+    except Stage3Error:
+        print("PASS  execute raises Stage3Error when stage3 config is None")
+        return
+    raise AssertionError("Expected Stage3Error")
+
+
+def test_execute_calls_tar_with_correct_flags():
+    config = _config_with_tarball()
+    runner = _default_runner()
+    execute(config, runner)
+    tar_cmds = [c for c in runner.shell_commands if "tar " in c]
+    assert len(tar_cmds) == 1, f"Expected 1 tar command, got: {tar_cmds}"
+    cmd = tar_cmds[0]
+    assert "xpvf" in cmd, cmd
+    assert "/tmp/stage3.tar.xz" in cmd, cmd
+    assert MOUNTPOINT in cmd, cmd
+    assert "--xattrs-include='*.*'" in cmd, cmd
+    assert "--numeric-owner" in cmd, cmd
+    print("PASS  execute calls tar xpf with xattrs and numeric-owner")
+
+
+def test_execute_copies_staged_fstab():
+    config = _config_with_tarball()
+    runner = _default_runner()
+    execute(config, runner)
+    cp_cmds = [c for c in runner.shell_commands if c.startswith("cp ")]
+    assert len(cp_cmds) == 1, f"Expected 1 cp command, got: {cp_cmds}"
+    cmd = cp_cmds[0]
+    assert FSTAB_STAGING_PATH in cmd, cmd
+    assert f"{MOUNTPOINT}/etc/fstab" in cmd, cmd
+    print("PASS  execute copies staged fstab to /mnt/gentoo/etc/fstab")
+
+
+def test_execute_copies_fstab_after_tar():
+    """cp must come after tar so /mnt/gentoo/etc/ already exists."""
+    config = _config_with_tarball()
+    runner = _default_runner()
+    execute(config, runner)
+    tar_idx = next(i for i, c in enumerate(runner.shell_commands) if "tar " in c)
+    cp_idx = next(i for i, c in enumerate(runner.shell_commands) if c.startswith("cp "))
+    assert tar_idx < cp_idx, f"cp (idx={cp_idx}) must come after tar (idx={tar_idx})"
+    print("PASS  execute copies fstab after tar extraction")
+
+
+def test_execute_dry_run_skips_commands():
+    config = _config_with_tarball()
+    runner = _FakeRunner(dry_run=True)
+    execute(config, runner)
+    assert not runner.shell_commands, runner.shell_commands
+    print("PASS  execute skips all commands in dry-run mode")
+
+
 if __name__ == "__main__":
     test_stage3_space_succeeds_after_root_mount()
     test_stage3_space_rejects_too_small_mountpoint()
+    test_execute_raises_when_no_tarball()
+    test_execute_raises_when_stage3_is_none()
+    test_execute_calls_tar_with_correct_flags()
+    test_execute_copies_staged_fstab()
+    test_execute_copies_fstab_after_tar()
+    test_execute_dry_run_skips_commands()
     print()
     print("All stage3 tests passed.")

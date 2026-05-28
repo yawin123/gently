@@ -12,6 +12,13 @@ from typing import Any, Callable
 
 
 @dataclass
+class CleanupEntry:
+	"""A registered cleanup action to be run when the installation finishes."""
+	description: str
+	action: Callable[[], None]
+
+
+@dataclass
 class CommandSpec:
 	argv: list[str]
 	check: bool = True
@@ -55,6 +62,58 @@ class Runner(ABC):
 		self.history: list[CommandResult] = []
 		# Optional callback(phase_key, line) called immediately after each command.
 		self.log_callback: Callable[[str, str], None] | None = None
+		# Optional callback(message, yes_key, no_key) -> bool for interactive confirmations.
+		# If None, confirm() always returns True (unattended / test mode).
+		self.confirm_callback: Callable[[str, str, str], bool] | None = None
+		# Stack of cleanup actions (LIFO). Phases push entries after reversible actions
+		# (mounts, swap activation, etc.). run_cleanup() drains the stack in reverse order.
+		self.cleanup_stack: list[CleanupEntry] = []
+
+	def push_cleanup(self, description: str, action: Callable[[], None]) -> None:
+		"""Register a cleanup action to be executed on teardown.
+
+		Actions are run in LIFO order by run_cleanup(), so the last thing registered
+		(e.g. a subdirectory mount) is the first to be undone.
+		"""
+		self.cleanup_stack.append(CleanupEntry(description=description, action=action))
+
+	def pop_cleanup(self) -> CleanupEntry | None:
+		"""Remove the top cleanup entry without running it.
+
+		Call this when a phase has already undone the action itself and the
+		registered cleanup is no longer needed.
+		"""
+		return self.cleanup_stack.pop() if self.cleanup_stack else None
+
+	def run_cleanup(self) -> list[tuple[str, Exception]]:
+		"""Drain the cleanup stack in LIFO order.
+
+		Each action is called even if a previous one raised; errors are collected
+		and returned as a list of (description, exception) pairs. Exceptions are
+		also emitted through log_callback if one is set.
+		"""
+		errors: list[tuple[str, Exception]] = []
+		while self.cleanup_stack:
+			entry = self.cleanup_stack.pop()
+			if self.log_callback:
+				self.log_callback("cleanup", f"[cleanup] {entry.description}")
+			try:
+				entry.action()
+			except Exception as exc:
+				if self.log_callback:
+					self.log_callback("cleanup", f"[cleanup] WARNING: {entry.description} failed: {exc}")
+				errors.append((entry.description, exc))
+		return errors
+
+	def confirm(self, message: str, yes_key: str = "ui_yes", no_key: str = "ui_no") -> bool:
+		"""Ask the user for confirmation.
+
+		In dry-run mode or when no callback is registered, returns True automatically.
+		The callback is typically set to backend.show_confirm by the orchestrator.
+		"""
+		if self.dry_run or self.confirm_callback is None:
+			return True
+		return self.confirm_callback(message, yes_key, no_key)
 
 	@property
 	@abstractmethod
@@ -498,11 +557,13 @@ def _placeholder(_config: Any, _runner: Runner) -> None:
 
 def default_install_phases() -> list[InstallPhase]:
 	from installer.preflight import execute as preflight_execute
+	from installer.partition import execute as partition_execute
+	from installer.stage3 import execute as stage3_execute
 
 	return [
 		InstallPhase("preflight", "Preflight", preflight_execute),
-		InstallPhase("partition", "Partition", _placeholder),
-		InstallPhase("stage3", "Stage3", _placeholder),
+		InstallPhase("partition", "Partition", partition_execute),
+		InstallPhase("stage3", "Stage3", stage3_execute),
 		InstallPhase("portage", "Portage", _placeholder),
 		InstallPhase("kernel", "Kernel", _placeholder),
 		InstallPhase("system", "System", _placeholder),
@@ -592,6 +653,9 @@ def run_installation(
 
 	return report
 
+	finally:
+		runner.run_cleanup()
+
 
 def run_installation_interactive(
 	config: Any,
@@ -607,6 +671,10 @@ def run_installation_interactive(
 	installation runs in the background.
 	"""
 	selected = phases if phases is not None else default_install_phases()
+
+	# Wire the backend's confirmation dialog to the runner so phases can ask
+	# the user questions (e.g. confirm_wipe) without depending on UIBackend directly.
+	runner.confirm_callback = backend.show_confirm
 
 	backend.prepare_install(selected)
 
