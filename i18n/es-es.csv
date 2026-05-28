@@ -191,6 +191,9 @@ ui_summary_hint," ↑↓ desplazarse  ←→/Tab acción  F2 idioma  Enter confi
 ui_summary_section_selector_label,Seleccione la sección a editar
 ui_summary_action_save,Guardar
 ui_summary_action_cancel,Cancelar
+ui_menu_title, Gently — Configuración
+ui_menu_hint," ↑↓ navegar  Enter editar  S guardar y salir  F2 idioma  Esc salir"
+ui_menu_hint_install_suffix,"  I instalar"
 ui_list_editor_add_item_prompt,Agregar elemento: 
 ui_press_any_key,[ Pulse cualquier tecla ]
 ui_error_title,Error

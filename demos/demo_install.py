@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.join(_ROOT, "vendor"))
 
 from model.config import load_config
 from model.validators import validate_coherence
-from installer.runner import build_runner
+from installer.runner import build_runner, run_installation_interactive
 from ui.curses_backend import CursesBackend
 
 
@@ -63,10 +63,7 @@ def main() -> None:
     backend = CursesBackend()
 
     try:
-        # run_install() arranca la instalación en un hilo de fondo y
-        # gestiona la UI curses en el hilo principal, evitando conflictos
-        # de terminal entre curses y los subprocesos de instalación.
-        report = backend.run_install(config, runner)
+        report = run_installation_interactive(config, runner, backend)
     except KeyboardInterrupt:
         print("\nInstalación interrumpida por el usuario.")
         sys.exit(130)
@@ -74,8 +71,8 @@ def main() -> None:
         print(f"\nERROR: {exc}")
         sys.exit(1)
 
-    # The backend's install_progress_end joined the UI thread, so curses is
-    # already closed here.  Safe to print.
+    # run_installation_interactive joined the install thread and the UI has
+    # already closed.  Safe to print.
     print(f"Installation {'OK' if report.ok else 'FAILED'}")
     for phase in report.phases:
         status = "✓" if phase.status == "ok" else "✗"

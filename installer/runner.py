@@ -591,3 +591,43 @@ def run_installation(
 		backend.install_progress_end(report)
 
 	return report
+
+
+def run_installation_interactive(
+	config: Any,
+	runner: Runner,
+	backend: Any,
+	phases: list[InstallPhase] | None = None,
+) -> InstallationReport:
+	"""Orchestrate installation with an interactive UI backend.
+
+	Prepares the backend, starts run_installation in a background thread,
+	then blocks on the calling (main) thread driving the UI.  This keeps
+	curses (or any other terminal UI) on the main thread while the
+	installation runs in the background.
+	"""
+	selected = phases if phases is not None else default_install_phases()
+
+	backend.prepare_install(selected)
+
+	report_box: list[Any] = [None]
+	error_box: list[Any] = [None]
+
+	def _run() -> None:
+		try:
+			report_box[0] = run_installation(config, runner, phases=selected, backend=backend)
+		except BaseException as exc:  # noqa: BLE001
+			error_box[0] = exc
+
+	install_thread = threading.Thread(target=_run, daemon=True, name="gently-install")
+	install_thread.start()
+
+	backend.run_install_ui()  # blocks on the main thread
+
+	install_thread.join(timeout=15.0)
+
+	if error_box[0] is not None:
+		raise error_box[0]
+	if report_box[0] is None:
+		return InstallationReport()
+	return report_box[0]

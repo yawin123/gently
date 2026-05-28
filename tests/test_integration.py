@@ -18,6 +18,9 @@ sys.path.insert(0, os.path.join(_ROOT, "vendor"))
 
 from typing import Any
 
+import i18n as _i18n
+_i18n.reload("en-us")
+
 from model.config import GentlyConfig
 from ui.abstract import FormSpec, UIBackend
 from gently import collect, FORMS
@@ -91,6 +94,7 @@ class StubBackend(UIBackend):
         self.show_info_calls:    list[str] = []   # info titles
         self.show_confirm_calls: list[str] = []   # confirm messages
         self.show_subsection_calls: list[str] = []
+        self.show_section_menu_calls: list = []
         self._confirm_index = 0
         self._partition_section_index = 0
         self._disk_form_calls = 0
@@ -122,6 +126,18 @@ class StubBackend(UIBackend):
     def show_summary(self, sections: list) -> str:
         return "install"
 
+    def show_section_menu(
+        self,
+        sections: list[tuple[str, str, bool]],
+        all_complete: bool,
+    ) -> str:
+        self.show_section_menu_calls.append((sections, all_complete))
+        # Auto-select the first incomplete section; when all are done, install.
+        for key, _name, complete in sections:
+            if not complete:
+                return f"edit:{key}"
+        return "install"
+
     def show_progress(self, phase: str, message: str) -> None:
         pass
 
@@ -140,7 +156,7 @@ def test_collect_empty_config_completes_all():
     """collect() with empty config runs all 10 forms and produces a complete config."""
     config = GentlyConfig()
     backend = StubBackend()
-    result = collect(config, backend)
+    result, _action = collect(config, backend)
 
     for form in FORMS:
         assert form.is_complete(result), \
@@ -153,7 +169,7 @@ def test_collect_empty_config_spot_checks():
     """Verify specific field values populated by the stub."""
     config = GentlyConfig()
     backend = StubBackend()
-    result = collect(config, backend)
+    result, _action = collect(config, backend)
 
     assert result.system.hostname == "testbox"
     assert result.system.timezone is not None
@@ -179,15 +195,13 @@ def test_collect_full_config_skips_all_forms():
 
     config = _complete_config()
     backend = StubBackend()
-    collect(config, backend)
+    _result, action = collect(config, backend)
 
     assert backend.show_form_calls == [], \
         f"Expected no show_form calls, got: {backend.show_form_calls}"
-    # One show_info call per form section
-    assert len(backend.show_info_calls) == len(FORMS), \
-        f"Expected {len(FORMS)} show_info calls, got {len(backend.show_info_calls)}"
+    assert action == "install", f"Expected 'install', got '{action}'"
 
-    print(f"PASS  collect(full_config): 0 forms shown, {len(FORMS)} sections confirmed")
+    print("PASS  collect(full_config): 0 forms shown, install action returned")
 
 
 def test_collect_partial_config_runs_only_missing():
@@ -204,9 +218,8 @@ def test_collect_partial_config_runs_only_missing():
     # Only kernel and bootloader forms should have been shown
     assert len(backend.show_form_calls) == 2, \
         f"Expected 2 show_form calls, got {len(backend.show_form_calls)}: {backend.show_form_calls}"
-    assert len(backend.show_info_calls) == len(FORMS) - 2
 
-    print(f"PASS  collect(partial_config): only 2 missing forms run")
+    print("PASS  collect(partial_config): only 2 missing forms run")
 
 
 def test_collect_returns_new_config_not_mutated():
@@ -216,7 +229,7 @@ def test_collect_returns_new_config_not_mutated():
     original_hostname = config.system.hostname
 
     backend = StubBackend()
-    result = collect(config, backend)
+    result, _action = collect(config, backend)
 
     assert result.system.hostname == original_hostname, \
         "Completed section was overwritten by collect()"

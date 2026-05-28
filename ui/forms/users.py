@@ -220,22 +220,9 @@ class UsersForm(SectionForm):
                 )
             )
 
-            # Cancel is only allowed when the section is already complete.
+            # Esc: return to the section menu without saving.
             if values is None:
-                snapshot = GentlyConfig(users=UsersConfig(
-                    credentials_file=draft_credentials_file,
-                    credentials_file_shadow=u.credentials_file_shadow,
-                    accounts=accounts,
-                ))
-                if self.is_complete(snapshot):
-                    return config
-                backend.show_error(
-                    "ui_error_title",
-                    "Users configuration requires either credentials_file "
-                    "or a root password.",
-                    "ui_press_any_key",
-                )
-                continue
+                return config
 
             base_values = values.get("__values__", values)
             draft_credentials_file = base_values.get("credentials_file") or None

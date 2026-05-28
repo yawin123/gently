@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import curses
 import curses.ascii
+import os
 import queue
 import sys
 import threading
@@ -9,6 +10,11 @@ import time
 from typing import Any
 
 from ui.abstract import UIBackend, FormSpec, FieldSpec
+
+# Reduce the ESC-key disambiguation timeout from the ncurses default (1000 ms)
+# to 25 ms. Without this, every Esc keypress has a noticeable lag because the
+# terminal waits to see if ESC is the start of a multi-byte escape sequence.
+os.environ.setdefault("ESCDELAY", "25")
 
 # ---------------------------------------------------------------------------
 # Color pair IDs (module-level constants)
@@ -509,6 +515,75 @@ def _form_loop(
 # Summary loop
 # ---------------------------------------------------------------------------
 
+def _section_menu_loop(
+    stdscr: curses.window,
+    sections: list[tuple[str, str, bool]],  # (key, name, is_complete)
+    all_complete: bool,
+    result: list,
+    backend: UIBackend,
+) -> None:
+    selected = 0
+
+    while True:
+        height, width = stdscr.getmaxyx()
+        stdscr.erase()
+
+        # Title bar
+        title = backend.translate("ui_menu_title")
+        stdscr.attron(curses.color_pair(_P_TITLE) | curses.A_BOLD)
+        _safe(stdscr, 0, 0, title.ljust(width))
+        stdscr.attroff(curses.color_pair(_P_TITLE) | curses.A_BOLD)
+
+        # Section list
+        for i, (_key, name, complete) in enumerate(sections):
+            row = 2 + i
+            if row >= height - 2:
+                break
+            icon = "\u2713" if complete else " "
+            line = f"  {icon}  {name}"
+            if i == selected:
+                _safe(stdscr, row, 0, line.ljust(width - 1), curses.color_pair(_P_ACTIVE))
+            else:
+                _safe(stdscr, row, 0, line[:width - 1])
+
+        # Status bar
+        hint = backend.translate("ui_menu_hint")
+        if all_complete:
+            hint += backend.translate("ui_menu_hint_install_suffix")
+        stdscr.attron(curses.color_pair(_P_STATUS))
+        _safe(stdscr, height - 1, 0, hint[:width - 1].ljust(width - 1))
+        stdscr.attroff(curses.color_pair(_P_STATUS))
+
+        stdscr.refresh()
+
+        try:
+            key = stdscr.getch()
+        except KeyboardInterrupt:
+            backend.interrupt()
+            return
+
+        if key == curses.KEY_UP:
+            selected = max(0, selected - 1)
+        elif key == curses.KEY_DOWN:
+            selected = min(len(sections) - 1, selected + 1)
+        elif key in (curses.KEY_ENTER, 10, 13):
+            result[0] = f"edit:{sections[selected][0]}"
+            return
+        elif key in (ord('s'), ord('S')):
+            result[0] = "save_and_exit"
+            return
+        elif key in (ord('i'), ord('I')) and all_complete:
+            result[0] = "install"
+            return
+        elif key == curses.KEY_F2:
+            _cycle_language(stdscr, backend)
+        elif key == 27:  # Esc
+            backend.interrupt()
+            return
+        elif key == curses.KEY_RESIZE:
+            stdscr.clear()
+
+
 def _summary_loop(
     stdscr: curses.window,
     sections: list[tuple[str, dict]],
@@ -813,6 +888,22 @@ class CursesBackend(UIBackend):
         curses.wrapper(_run)
         return result[0]
 
+    def show_section_menu(
+        self,
+        sections: list[tuple[str, str, bool]],
+        all_complete: bool,
+    ) -> str:
+        result = ["save_and_exit"]
+
+        def _run(stdscr: curses.window) -> None:
+            _setup_colors()
+            curses.curs_set(0)
+            stdscr.keypad(True)
+            _section_menu_loop(stdscr, sections, all_complete, result, self)
+
+        curses.wrapper(_run)
+        return result[0]
+
     def show_summary(self, sections: list[tuple[str, dict]]) -> str:
         result = ["save_and_exit"]
 
@@ -830,69 +921,44 @@ class CursesBackend(UIBackend):
 
     # ── Full-screen installation log ───────────────────────
 
-    def run_install(self, config: Any, runner: Any, phases: list | None = None) -> Any:
-        """Run installation with the curses UI on the MAIN thread.
+    def prepare_install(self, phases: list) -> None:
+        """Set up internal state for the installation UI.
 
-        Preferred entry point when using CursesBackend interactively.
-        Starts run_installation in a background thread and drives the UI
-        on the calling (main) thread, avoiding terminal conflicts.
+        Must be called (from the main thread) before starting the installation
+        thread so that the queue is ready when the first progress events arrive.
         """
-        from installer.runner import run_installation, default_install_phases
-
-        selected = phases if phases is not None else default_install_phases()
-
-        # Pre-initialise phase data with proper titles so install_progress_begin
-        # (called later from the background thread) skips its own setup.
         self._install_phases = [
             {"key": p.key, "title": p.title, "status": "pending", "duration_sec": None,
              "log": [], "expanded": False, "log_scroll": 0}
-            for p in selected
+            for p in phases
         ]
-        self._install_phase_index: dict[str, int] = {p.key: i for i, p in enumerate(selected)}
+        self._install_phase_index: dict[str, int] = {p.key: i for i, p in enumerate(phases)}
         self._install_queue: queue.Queue = queue.Queue()
         self._install_finished = False
         self._install_selected = 0
-        # No _install_ui_thread — the UI runs in this (main) thread.
+        # No _install_ui_thread — the UI runs on the main thread via run_install_ui().
         self.__dict__.pop("_install_ui_thread", None)
 
-        report_box: list[Any] = [None]
-        error_box: list[Any] = [None]
+    def run_install_ui(self) -> None:
+        """Block on the calling (main) thread driving the curses installation UI.
 
-        def _run() -> None:
-            try:
-                report_box[0] = run_installation(
-                    config, runner, phases=selected, backend=self,
-                )
-            except BaseException as exc:  # noqa: BLE001
-                error_box[0] = exc
-
-        install_thread = threading.Thread(target=_run, daemon=True, name="gently-install")
-        install_thread.start()
-
+        The installation must be running in a background thread.
+        Returns once the user closes the UI (after installation completes or fails).
+        """
         try:
             curses.wrapper(self._install_live_loop)
         except KeyboardInterrupt:
-            # endwin() already called by curses.wrapper; propagate so the
-            # caller (demo_install.py) can exit the process cleanly.
             raise
 
-        install_thread.join(timeout=15.0)
-
-        if error_box[0] is not None:
-            raise error_box[0]
-        if report_box[0] is None:
-            from installer.runner import InstallationReport
-            return InstallationReport()
-        return report_box[0]
-
     def install_progress_begin(self, phase_keys: list[str]) -> None:
-        """Initialise phase data. Starts a background UI thread in standalone mode.
+        """Initialise phase data. Becomes a no-op when prepare_install() was already called.
 
-        When called from a thread started by run_install(), the queue is already
-        set up — this method becomes a no-op so the pre-initialised data is kept.
+        Standalone mode: if prepare_install() was not called beforehand, the
+        installation is assumed to run on the main thread; a background UI thread
+        is started so curses does not conflict with the calling thread.
         """
         if hasattr(self, "_install_queue"):
-            # Queue already set up by run_install(); nothing to do.
+            # Queue already set up by prepare_install(); nothing to do.
             return
 
         # Standalone mode: installation runs on the main thread, UI on a daemon thread.

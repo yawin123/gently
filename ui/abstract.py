@@ -38,6 +38,19 @@ class UIBackend(ABC):
         """
 
     @abstractmethod
+    def show_section_menu(
+        self,
+        sections: list[tuple[str, str, bool]],
+        all_complete: bool,
+    ) -> str:
+        """
+        Display a section selection menu.
+        sections: list of (section_key, section_name, is_complete)
+        all_complete: whether every section is complete (enables "install" option)
+        Returns "edit:<section_key>", "save_and_exit", or "install".
+        """
+
+    @abstractmethod
     def show_summary(self, sections: list[tuple[str, dict]]) -> str:
         """
         Display the full configuration summary.
@@ -67,6 +80,20 @@ class UIBackend(ABC):
 
     def install_progress_end(self, report: Any) -> None:
         """Called after the last phase finishes (or on error)."""
+
+    def prepare_install(self, phases: list) -> None:
+        """Prepare the backend to display installation progress for *phases*.
+
+        Called by the orchestrator before the installation thread is started,
+        so the queue and phase data are ready when the first progress events arrive.
+        """
+
+    def run_install_ui(self) -> None:
+        """Block on the calling (main) thread driving the installation UI.
+
+        Called by the orchestrator after starting the background installation
+        thread.  Returns once the user closes the UI.
+        """
 
     @abstractmethod
     def show_error(self, title_key: str, message: str, ok_key: str) -> None:

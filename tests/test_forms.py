@@ -29,6 +29,9 @@ from ui.forms.users      import UsersForm
 from ui.forms.packages   import PackagesForm
 from ui.forms.distcc     import DistccForm
 
+import i18n as _i18n
+_i18n.reload("en-us")  # tests compare against English strings
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -282,6 +285,9 @@ def test_users_run_requires_root_auth():
         def show_error(self, title_key, message, ok_key):
             self.errors.append(message)
 
+        def interrupt(self):
+            raise SystemExit(0)
+
     backend = ScriptedBackend()
     result = UsersForm().run(GentlyConfig(), backend)
     assert backend.errors, "Expected validation error when leaving without root auth"
@@ -311,6 +317,9 @@ def test_users_run_requires_password_match():
 
         def show_error(self, title_key, message, ok_key):
             self.errors.append(message)
+
+        def interrupt(self):
+            raise SystemExit(0)
 
     backend = ScriptedBackend()
     result = UsersForm().run(GentlyConfig(), backend)
@@ -391,6 +400,9 @@ def test_disks_run_partition_cancel_then_add():
         def show_confirm(self, message, yes_key, no_key):
             return True
 
+        def interrupt(self):
+            raise SystemExit(0)
+
     config = GentlyConfig()
     backend = ScriptedBackend()
     result = DisksForm().run(config, backend)
@@ -460,6 +472,9 @@ def test_disks_run_edit_existing_partition():
         def show_confirm(self, message, yes_key, no_key):
             return True
 
+        def interrupt(self):
+            raise SystemExit(0)
+
     config = GentlyConfig(disks=[DiskConfig(
         device="/dev/sda",
         partition_table="gpt",
@@ -514,6 +529,9 @@ def test_disks_run_delete_existing_partition():
 
         def show_confirm(self, message, yes_key, no_key):
             return True
+
+        def interrupt(self):
+            raise SystemExit(0)
 
     config = GentlyConfig(disks=[DiskConfig(
         device="/dev/sda",

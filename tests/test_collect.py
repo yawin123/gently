@@ -21,16 +21,20 @@ from gently import collect
 # Stubs
 # ---------------------------------------------------------------------------
 
-class _NoopBackend(UIBackend):
-    """Backend that records calls without touching the terminal."""
+class _ScriptedBackend(UIBackend):
+    """Backend driven by a sequence of pre-set show_section_menu return values."""
 
-    def __init__(self):
-        self.info_calls = []
-        self.form_calls = []
+    def __init__(self, menu_script: list[str]):
+        self._menu_script = list(menu_script)
+        self.menu_calls: list[tuple[list, bool]] = []
+        self.form_calls: list[str] = []
+
+    def show_section_menu(self, sections, all_complete):
+        self.menu_calls.append((sections, all_complete))
+        return self._menu_script.pop(0)
 
     def show_form(self, form: FormSpec) -> dict:
         self.form_calls.append(form.title)
-        # Return whatever the fields' defaults are
         return {f.key: f.default for f in form.fields}
 
     def show_summary(self, sections):
@@ -49,7 +53,7 @@ class _NoopBackend(UIBackend):
         return True
 
     def show_info(self, title, lines, ok_key):
-        self.info_calls.append(lines[0] if lines else "")
+        pass
 
 
 class _CompleteForm(SectionForm):
@@ -93,63 +97,80 @@ class _IncompleteForm(SectionForm):
 # Tests
 # ---------------------------------------------------------------------------
 
-def test_complete_section_is_skipped():
-    """Sections where is_complete() → True must be skipped (show_info called)."""
-    backend = _NoopBackend()
-    form = _CompleteForm()
+def test_immediate_save():
+    """show_section_menu returning 'save_and_exit' immediately ends collect()."""
+    backend = _ScriptedBackend(["save_and_exit"])
 
     import gently
     original_forms = gently.FORMS
-    gently.FORMS = [form]
+    gently.FORMS = [_CompleteForm()]
     try:
-        collect(GentlyConfig(), backend)
+        config, action = collect(GentlyConfig(), backend)
     finally:
         gently.FORMS = original_forms
 
-    assert len(backend.info_calls) == 1, "Expected one show_info call"
-    assert "complete" in backend.info_calls[0].lower()
-    assert len(backend.form_calls) == 0, "show_form must not be called"
-    print("PASS  complete section is skipped, show_info called")
+    assert action == "save_and_exit"
+    assert len(backend.menu_calls) == 1
+    assert len(backend.form_calls) == 0
+    print("PASS  immediate save_and_exit terminates collect()")
 
 
-def test_incomplete_section_runs_form():
-    """Sections where is_complete() → False must run the form cycle."""
-    backend = _NoopBackend()
+def test_immediate_install():
+    """show_section_menu returning 'install' ends collect() with install action."""
+    backend = _ScriptedBackend(["install"])
+
+    import gently
+    original_forms = gently.FORMS
+    gently.FORMS = [_CompleteForm()]
+    try:
+        config, action = collect(GentlyConfig(), backend)
+    finally:
+        gently.FORMS = original_forms
+
+    assert action == "install"
+    assert len(backend.menu_calls) == 1
+    print("PASS  install action propagated from menu")
+
+
+def test_edit_then_save():
+    """Selecting a section runs its form; returning to menu and saving works."""
     form = _IncompleteForm("alpha")
+    backend = _ScriptedBackend(["edit:stage3", "save_and_exit"])
 
     import gently
     original_forms = gently.FORMS
     gently.FORMS = [form]
     try:
-        collect(GentlyConfig(), backend)
+        config, action = collect(GentlyConfig(), backend)
     finally:
         gently.FORMS = original_forms
 
+    assert action == "save_and_exit"
     assert form.applied, "apply() must be called after show_form"
     assert backend.form_calls == ["Form: alpha"]
-    assert len(backend.info_calls) == 0
-    print("PASS  incomplete section runs form, apply() called")
+    assert len(backend.menu_calls) == 2, "menu shown before and after editing"
+    print("PASS  edit section → back to menu → save")
 
 
-def test_mixed_sections_order():
-    """Complete sections are skipped; incomplete ones run, in order."""
-    backend = _NoopBackend()
-    f_complete   = _CompleteForm()
-    f_incomplete = _IncompleteForm("beta")
+def test_complete_status_passed_to_menu():
+    """sections list passed to show_section_menu carries correct is_complete flags."""
+    complete_form = _CompleteForm()
+    incomplete_form = _IncompleteForm("beta")
+    backend = _ScriptedBackend(["save_and_exit"])
 
     import gently
     original_forms = gently.FORMS
-    gently.FORMS = [f_complete, f_incomplete]
+    gently.FORMS = [complete_form, incomplete_form]
     try:
         collect(GentlyConfig(), backend)
     finally:
         gently.FORMS = original_forms
 
-    assert len(backend.info_calls) == 1
-    assert len(backend.form_calls) == 1
-    assert backend.form_calls[0] == "Form: beta"
-    assert f_incomplete.applied
-    print("PASS  mixed sections: complete skipped, incomplete runs, order preserved")
+    sections, all_complete = backend.menu_calls[0]
+    assert sections[0][2] is True,  "CompleteForm should be marked complete"
+    assert sections[1][2] is False, "IncompleteForm should be marked incomplete"
+    assert all_complete is False,   "all_complete must be False when any section is incomplete"
+    print("PASS  completion flags correctly passed to show_section_menu")
 
 
 def test_all_forms_importable():
@@ -164,9 +185,10 @@ def test_all_forms_importable():
 
 
 if __name__ == "__main__":
-    test_complete_section_is_skipped()
-    test_incomplete_section_runs_form()
-    test_mixed_sections_order()
+    test_immediate_save()
+    test_immediate_install()
+    test_edit_then_save()
+    test_complete_status_passed_to_menu()
     test_all_forms_importable()
     print()
     print("All collect() engine tests passed.")

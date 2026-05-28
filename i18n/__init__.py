@@ -102,10 +102,11 @@ def current_language() -> str:
 
 
 def reload(lang_tag: str | None = None) -> str:
-    global _current_lang
+    global _current_lang, _loaded
     if lang_tag is None:
         lang_tag = _detect_lang()
     _current_lang = _load_best(lang_tag)
+    _loaded = True
     return _current_lang
 
 

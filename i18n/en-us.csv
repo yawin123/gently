@@ -191,6 +191,9 @@ ui_summary_hint," ↑↓ scroll  ←→/Tab action  F2 lang  Enter confirm"
 ui_summary_section_selector_label,Select section to edit
 ui_summary_action_save,Save
 ui_summary_action_cancel,Cancel
+ui_menu_title, Gently — Configuration
+ui_menu_hint," ↑↓ navigate  Enter edit  S save & exit  F2 lang  Esc quit"
+ui_menu_hint_install_suffix,"  I install"
 ui_list_editor_add_item_prompt,Add item: 
 ui_press_any_key,[ Press any key ]
 ui_error_title,Error

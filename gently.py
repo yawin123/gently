@@ -9,6 +9,7 @@ from model.config import load_config, save_config, ConfigError, GentlyConfig
 from model.validators import validate_coherence
 from ui.abstract import UIBackend
 from ui.curses_backend import CursesBackend
+from installer.runner import LocalRunner, run_installation_interactive
 from ui.forms.system import SystemForm
 from ui.forms.stage3 import Stage3Form
 from ui.forms.disks import DisksForm
@@ -34,26 +35,30 @@ FORMS = [
 ]
 
 
-def collect(config: GentlyConfig, backend: UIBackend) -> GentlyConfig:
+def collect(config: GentlyConfig, backend: UIBackend) -> tuple[GentlyConfig, str]:
+    """Show the section selection menu and return (config, action).
+
+    action is "save_and_exit" or "install".
+    """
     forms_by_key = {form.section_key: form for form in FORMS}
 
     while True:
-        for form in FORMS:
-            if form.is_complete(config):
-                backend.show_info("✓", [f"{form.section_name} — configuration complete"], "ui_press_any_key")
-            else:
-                config = form.run(config, backend)
+        sections = [
+            (f.section_key, f.section_name, f.is_complete(config))
+            for f in FORMS
+        ]
+        all_complete = all(complete for _, _, complete in sections)
 
-        action = backend.show_summary(_build_summary_sections(config))
+        action = backend.show_section_menu(sections, all_complete)
+
         if action in ("save_and_exit", "install"):
-            return config
+            return config, action
+
         if action.startswith("edit:"):
-            section_key = action.split(":", 1)[1]
-            form = forms_by_key.get(section_key)
-            if form is None:
-                backend.show_error("ui_error_title", f"Unknown section key: {section_key}", "ui_press_any_key")
-                continue
-            config = form.run(config, backend)
+            key = action.split(":", 1)[1]
+            form = forms_by_key.get(key)
+            if form:
+                config = form.run(config, backend)
 
 
 def _build_summary_sections(config: GentlyConfig) -> list[tuple[str, dict[str, Any]]]:
@@ -91,7 +96,7 @@ def _build_summary_sections(config: GentlyConfig) -> list[tuple[str, dict[str, A
 def main() -> None:
     backend = CursesBackend()
     config = load_config("config.toml")
-    config = collect(config, backend)
+    config, action = collect(config, backend)
     save_config(config, "config.toml")
 
     # Always persist a timestamped copy.
@@ -100,11 +105,19 @@ def main() -> None:
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     save_config(config, os.path.join(saves_dir, f"gently_{ts}.toml"))
 
+    if action != "install":
+        return
+
     errors = validate_coherence(config)
     if errors:
         backend.show_error("ui_error_title", "\n".join(errors), "ui_press_any_key")
         sys.exit(1)
-    # Milestone 5: run_installation(config, backend)
+
+    runner = LocalRunner(dry_run=False)
+    try:
+        run_installation_interactive(config, runner, backend)
+    except KeyboardInterrupt:
+        sys.exit(130)
 
 
 if __name__ == "__main__":

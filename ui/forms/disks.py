@@ -162,8 +162,8 @@ class DisksForm(SectionForm):
                 options = [default_device] + options
 
         return FormSpec(
-            title="form_disk_disk_title",
-            subtitle="form_disk_disk_subtitle",
+            title=i18n.t("form_disk_disk_title"),
+            subtitle=i18n.t("form_disk_disk_subtitle"),
             fields=[
                 FieldSpec(
                     key="device",
