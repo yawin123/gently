@@ -56,6 +56,10 @@ class CommandExecutionError(RunnerError):
 		)
 
 
+class AbortError(RunnerError):
+	"""Raised when the user requests an abort during installation."""
+
+
 class Runner(ABC):
 	def __init__(self, dry_run: bool = False):
 		self.dry_run = dry_run
@@ -71,6 +75,10 @@ class Runner(ABC):
 		# When set, run_shell() wraps all commands with `chroot <path> /bin/bash -lc`.
 		# Set by the chroot_prep phase; cleared automatically by run_cleanup().
 		self.chroot_path: str | None = None
+		# Event that, when set, signals the installation phases to abort cleanly.
+		# The installation loop checks this between phases.  Set by the UI thread
+		# (e.g. on Esc key) and cleared automatically after the abort is handled.
+		self.abort_event: threading.Event | None = None
 
 	def push_cleanup(self, description: str, action: Callable[[], None]) -> None:
 		"""Register a cleanup action to be executed on teardown.
@@ -101,8 +109,6 @@ class Runner(ABC):
 		errors: list[tuple[str, Exception]] = []
 		while self.cleanup_stack:
 			entry = self.cleanup_stack.pop()
-			if self.log_callback:
-				self.log_callback("cleanup", f"[cleanup] {entry.description}")
 			try:
 				entry.action()
 			except Exception as exc:
@@ -138,8 +144,13 @@ class Runner(ABC):
 		cmd_line = f"$ {' '.join(spec.argv)}"
 
 		if self.dry_run:
-			if self.log_callback:
-				self.log_callback(phase, f"{cmd_line}  [dry-run]")
+			cmd_line = f"[dry-run] {cmd_line}"
+
+		# Emit the command line BEFORE executing so the user sees it immediately.
+		if self.log_callback:
+			self.log_callback(phase, cmd_line)
+
+		if self.dry_run:
 			result = CommandResult(
 				argv=spec.argv,
 				returncode=0,
@@ -152,10 +163,6 @@ class Runner(ABC):
 			)
 			self.history.append(result)
 			return result
-
-		# Emit the command line BEFORE executing so the user sees it immediately.
-		if self.log_callback:
-			self.log_callback(phase, cmd_line)
 
 		# Use streaming execution (line-by-line) when available and a log callback is
 		# set, so the user sees output in real time instead of in one batch at the end.
@@ -183,8 +190,16 @@ class Runner(ABC):
 		cwd: str | None = None,
 		env: dict[str, str] | None = None,
 		phase: str | None = None,
+		chroot: bool = False,
 	) -> CommandResult:
-		if self.chroot_path:
+		"""Run a shell command.
+
+		When chroot=True and chroot_path is set, the command is wrapped with
+		`chroot <path> /bin/bash -lc`.  Pass chroot=False (default) for
+		operations that must run on the host even when chroot_path is active
+		(e.g. mount, umount).
+		"""
+		if chroot and self.chroot_path:
 			argv = ["chroot", self.chroot_path, "/bin/bash", "-lc", command]
 		else:
 			argv = ["bash", "-lc", command]
@@ -570,13 +585,14 @@ def default_install_phases() -> list[InstallPhase]:
 	from installer.partition import execute as partition_execute
 	from installer.stage3 import execute as stage3_execute
 	from installer.chroot import execute as chroot_prep_execute
+	from installer.portage import execute as portage_execute
 
 	return [
 		InstallPhase("preflight",   "Preflight",        preflight_execute),
 		InstallPhase("partition",   "Partition",        partition_execute),
 		InstallPhase("stage3",      "Stage3",           stage3_execute),
 		InstallPhase("chroot_prep", "Chroot Prep",      chroot_prep_execute),
-		InstallPhase("portage",     "Portage",          _placeholder),
+		InstallPhase("portage",     "Portage",          portage_execute),
 		InstallPhase("kernel",      "Kernel",           _placeholder),
 		InstallPhase("system",      "System",           _placeholder),
 		InstallPhase("services",    "Services",         _placeholder),
@@ -602,6 +618,10 @@ def run_installation(
 			runner.log_callback = backend.install_progress_update
 
 		for phase in selected:
+			# Check for abort request between phases.
+			if runner.abort_event is not None and runner.abort_event.is_set():
+				raise AbortError("Installation aborted by user")
+
 			started = time.time()
 			if progress_cb:
 				progress_cb(phase.key, f"Starting {phase.title}")
@@ -620,6 +640,20 @@ def run_installation(
 					progress_cb(phase.key, f"Completed {phase.title}")
 				if backend is not None:
 					backend.install_progress_update(phase.key, f"Completed {phase.title}")
+			except AbortError:
+				# User-requested abort — still capture the phase result but stop
+				# processing further phases.  Cleanup will run in the finally block.
+				phase_result = InstallPhaseResult(
+					key=phase.key,
+					title=phase.title,
+					status="error",
+					duration_sec=time.time() - started,
+					error="Aborted by user",
+				)
+				report.phases.append(phase_result)
+				if backend is not None:
+					backend.install_progress_update(phase.key, "ABORTED by user")
+				raise
 			except Exception as exc:
 				phase_result = InstallPhaseResult(
 					key=phase.key,
@@ -662,6 +696,7 @@ def run_installation(
 				backend.install_progress_end(report)
 			except Exception:
 				pass
+		runner.abort_event = None
 
 
 def run_installation_interactive(
@@ -684,6 +719,7 @@ def run_installation_interactive(
 	runner.confirm_callback = backend.show_confirm
 
 	backend.prepare_install(selected)
+	runner.abort_event = threading.Event()
 
 	report_box: list[Any] = [None]
 	error_box: list[Any] = [None]

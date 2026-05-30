@@ -411,13 +411,13 @@ def test_execute_nvme_device_naming():
     print("PASS  execute uses NVMe 'p' partition naming")
 
 
-def test_execute_dry_run_skips_disk_query():
+def test_execute_dry_run_emits_disk_query():
     config = GentlyConfig(disks=[_typical_disk()])
     runner = _FakeRunner(dry_run=True)
     execute(config, runner)
-    # In dry-run, lsblk should NOT be called (FALLBACK_DISK_BYTES is used instead)
-    assert not any("lsblk" in cmd for cmd in runner.shell_commands), runner.shell_commands
-    print("PASS  execute does not call lsblk in dry-run mode")
+    # In dry-run, lsblk is still issued (shows the command) but FALLBACK_DISK_BYTES is used.
+    assert any("lsblk" in cmd for cmd in runner.shell_commands), runner.shell_commands
+    print("PASS  execute emits lsblk in dry-run mode (uses FALLBACK_DISK_BYTES)")
 
 
 # ---------------------------------------------------------------------------
@@ -504,7 +504,7 @@ if __name__ == "__main__":
     test_execute_writes_fstab()
     test_execute_raises_on_missing_device()
     test_execute_nvme_device_naming()
-    test_execute_dry_run_skips_disk_query()
+    test_execute_dry_run_emits_disk_query()
     test_execute_asks_confirm_when_confirm_wipe_true()
     test_execute_skips_confirm_when_confirm_wipe_false()
     test_execute_aborts_when_user_denies_confirm()

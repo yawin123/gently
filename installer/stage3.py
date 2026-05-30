@@ -37,19 +37,21 @@ def _required_stage3_space_bytes(config: GentlyConfig, runner: Runner) -> int:
 		f"stat -c %s {local_path}",
 		phase="stage3",
 	)
+	if runner.dry_run:
+		return MIN_STAGE3_FREE_BYTES
 	file_size = parse_int(size_result.stdout, "stage3 local tarball size", PreflightError)
 	return max(MIN_STAGE3_FREE_BYTES, file_size * 3)
 
 
 def ensure_stage3_space(config: GentlyConfig, runner: Runner, mountpoint: str = "/mnt/gentoo") -> None:
-	if runner.dry_run:
-		return
 	free_result = runner.run_shell(
 		f'python3 -c "import shutil; print(shutil.disk_usage({mountpoint!r}).free)"',
 		phase="stage3",
 	)
-	free_bytes = parse_int(free_result.stdout, f"free space in {mountpoint}", PreflightError)
 	required = _required_stage3_space_bytes(config, runner)
+	if runner.dry_run:
+		return
+	free_bytes = parse_int(free_result.stdout, f"free space in {mountpoint}", PreflightError)
 	if free_bytes < required:
 		raise PreflightError(
 			f"Not enough free space in {mountpoint} for stage3 extraction. "
@@ -61,14 +63,28 @@ def ensure_stage3_space(config: GentlyConfig, runner: Runner, mountpoint: str = 
 # Public entry point
 # ---------------------------------------------------------------------------
 
-def execute(config: GentlyConfig, runner: Runner) -> None:
+def _resolve_tarball(config: GentlyConfig, runner: Runner) -> str:
+	"""Return the stage3 tarball path, or raise Stage3Error if not configured.
+
+	In dry_run mode the validation is skipped and the configured path is
+	returned as-is (or a placeholder if not set), so the rest of execute()
+	can produce realistic dry-run log output.
+	"""
 	stage3 = config.stage3
-	if stage3 is None or not stage3.local_path:
+	local_path = stage3.local_path if stage3 is not None else None
+	if runner.dry_run:
+		return local_path or "<stage3.tar.xz>"
+	if not local_path:
 		raise Stage3Error(i18n.t("stage3_error_no_tarball"))
+	return local_path
+
+
+def execute(config: GentlyConfig, runner: Runner) -> None:
+	tarball_path = _resolve_tarball(config, runner)
 
 	ensure_stage3_space(config, runner, MOUNTPOINT)
 
-	tarball = shlex.quote(stage3.local_path)
+	tarball = shlex.quote(tarball_path)
 	runner.run_shell(
 		f"tar xpvf {tarball} -C {shlex.quote(MOUNTPOINT)}"
 		f" --xattrs-include='*.*' --numeric-owner",

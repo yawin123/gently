@@ -42,9 +42,8 @@ mount         = "/"
 mount_options = "noatime"
 
 [portage]
-cflags          = "-O2 -pipe -march=x86-64-v3"
-cxxflags        = "-O2 -pipe -march=x86-64-v3"
-makeopts        = "-j1"
+cflags          = "-O2 -pipe"
+cxxflags        = "-O2 -pipe"
 use             = ["-bluetooth", "-cups", "-X"]
 accept_keywords = "amd64"
 accept_license  = "@FREE"
@@ -76,3 +75,25 @@ shell  = "/bin/bash"
 
 [users]
 credentials_file = "credentials.toml"
+
+[distcc]
+enabled = true
+
+# Hosts in native distcc format:
+#   "host"            — default slots (4)
+#   "host/N"          — N slots
+#   "host/N,lzo"      — with lzo compression
+#   "host/N,lzo,cpp"  — with pump mode enabled per host
+hosts = [
+    "192.168.2.3/36,lzo",
+    "94.23.0.137/36",
+    "localhost/2",
+]
+
+# Pump mode: distributed preprocessing on the remote host.
+# Requires all hosts to have cpp declared in hosts above.
+pump_mode = false
+
+# If true, emerge distcc on the installed system in addition to using it
+# during the installation.
+install_on_target = true

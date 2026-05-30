@@ -15,7 +15,7 @@ sys.path.insert(0, _ROOT)
 sys.path.insert(0, os.path.join(_ROOT, "vendor"))
 
 from installer.preflight import PreflightError
-from installer.stage3 import ensure_stage3_space, execute, Stage3Error
+from installer.stage3 import ensure_stage3_space, execute, _resolve_tarball, Stage3Error
 from installer.partition import FSTAB_STAGING_PATH, MOUNTPOINT
 from installer.runner import CommandExecutionError, CommandResult, CommandSpec
 from model.config import DiskConfig, GentlyConfig, Stage3Config
@@ -197,7 +197,38 @@ def test_execute_dry_run_skips_commands():
     runner = _FakeRunner(dry_run=True)
     execute(config, runner)
     assert not runner.shell_commands, runner.shell_commands
-    print("PASS  execute skips all commands in dry-run mode")
+    print("PASS  execute issues no real commands in dry-run mode")
+
+
+def test_execute_dry_run_without_tarball_does_not_raise():
+    """dry_run must succeed even when no tarball is configured (UI preview mode)."""
+    config = GentlyConfig()  # stage3=None, no local_path
+    runner = _FakeRunner(dry_run=True)
+    execute(config, runner)  # must not raise
+    assert not runner.shell_commands
+    print("PASS  execute dry-run succeeds without any tarball configured")
+
+
+def test_resolve_tarball_raises_when_not_configured():
+    try:
+        _resolve_tarball(GentlyConfig(), _FakeRunner(dry_run=False))
+    except Stage3Error:
+        print("PASS  _resolve_tarball raises Stage3Error when not configured")
+        return
+    raise AssertionError("Expected Stage3Error")
+
+
+def test_resolve_tarball_returns_placeholder_in_dry_run():
+    path = _resolve_tarball(GentlyConfig(), _FakeRunner(dry_run=True))
+    assert path  # any non-empty string is fine as a placeholder
+    print("PASS  _resolve_tarball returns placeholder in dry_run")
+
+
+def test_resolve_tarball_returns_configured_path():
+    config = _config_with_tarball("/mnt/iso/stage3.tar.xz")
+    path = _resolve_tarball(config, _FakeRunner(dry_run=False))
+    assert path == "/mnt/iso/stage3.tar.xz", path
+    print("PASS  _resolve_tarball returns configured local_path")
 
 
 if __name__ == "__main__":
@@ -209,5 +240,9 @@ if __name__ == "__main__":
     test_execute_copies_staged_fstab()
     test_execute_copies_fstab_after_tar()
     test_execute_dry_run_skips_commands()
+    test_execute_dry_run_without_tarball_does_not_raise()
+    test_resolve_tarball_raises_when_not_configured()
+    test_resolve_tarball_returns_placeholder_in_dry_run()
+    test_resolve_tarball_returns_configured_path()
     print()
     print("All stage3 tests passed.")

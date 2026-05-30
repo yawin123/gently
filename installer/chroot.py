@@ -78,12 +78,6 @@ def _mount_virt(runner: Runner) -> None:
 # ---------------------------------------------------------------------------
 
 def execute(config: GentlyConfig, runner: Runner) -> None:
-	if runner.dry_run:
-		# In dry-run mode we still set chroot_path so subsequent phases produce
-		# realistic dry-run log output (commands shown with chroot prefix).
-		runner.chroot_path = MOUNTPOINT
-		return
-
 	_mount_virt(runner)
 
 	# Copy DNS configuration so the chroot can reach the network.
@@ -92,6 +86,6 @@ def execute(config: GentlyConfig, runner: Runner) -> None:
 		phase=PHASE_KEY,
 	)
 
-	# Activate chroot mode.  From this point, runner.run_shell() wraps every
-	# command with: chroot /mnt/gentoo /bin/bash -lc "..."
+	# Activate chroot mode.  From this point, runner.run_shell(chroot=True) wraps
+	# every command with: chroot /mnt/gentoo /bin/bash -lc "..."
 	runner.chroot_path = MOUNTPOINT

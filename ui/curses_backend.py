@@ -523,9 +523,11 @@ def _section_menu_loop(
     backend: UIBackend,
 ) -> None:
     selected = 0
+    scroll = 0
 
     while True:
         height, width = stdscr.getmaxyx()
+        content_h = height - 3  # title bar + status bar
         stdscr.erase()
 
         # Title bar
@@ -534,11 +536,18 @@ def _section_menu_loop(
         _safe(stdscr, 0, 0, title.ljust(width))
         stdscr.attroff(curses.color_pair(_P_TITLE) | curses.A_BOLD)
 
-        # Section list
-        for i, (_key, name, complete) in enumerate(sections):
-            row = 2 + i
-            if row >= height - 2:
-                break
+        # Keep selected item visible
+        if selected < scroll:
+            scroll = selected
+        elif selected >= scroll + content_h:
+            scroll = selected - content_h + 1
+        scroll = max(0, min(scroll, len(sections) - content_h))
+
+        # Section list (scroll-aware)
+        visible_end = min(scroll + content_h, len(sections))
+        for i in range(scroll, visible_end):
+            _key, name, complete = sections[i]
+            row = 2 + (i - scroll)
             icon = "\u2713" if complete else " "
             line = f"  {icon}  {name}"
             if i == selected:
@@ -941,6 +950,8 @@ class CursesBackend(UIBackend):
         self._install_queue: queue.Queue = queue.Queue()
         self._install_finished = False
         self._install_selected = 0
+        self._install_auto_select = True
+        self._install_runner = None
         # No _install_ui_thread — the UI runs on the main thread via run_install_ui().
         self.__dict__.pop("_install_ui_thread", None)
 
@@ -1024,6 +1035,7 @@ class CursesBackend(UIBackend):
                             ph = phases[idx]
                             if ph["status"] == "pending":
                                 ph["status"] = "running"
+                                ph["expanded"] = True
                             ph["log"].append(message)
                             # (scroll is handled by _install_redraw)
                     elif kind == "done":
@@ -1038,11 +1050,15 @@ class CursesBackend(UIBackend):
                                     ph["log"].append(f"ERROR: {phase_result.error}")
                         for ph in phases:
                             if ph["status"] in ("pending", "running"):
-                                # Cleanup phase: check its log for warnings to decide status.
-                                if ph["key"] == "cleanup" and any("WARNING" in line for line in ph["log"]):
-                                    ph["status"] = "failed"
+                                if ph["key"] == "cleanup":
+                                    # Cleanup always runs — reflect its actual outcome.
+                                    if any("WARNING" in line for line in ph["log"]):
+                                        ph["status"] = "failed"
+                                    else:
+                                        ph["status"] = "done"
                                 else:
-                                    ph["status"] = "done"
+                                    # Phase was never started — mark as skipped.
+                                    ph["status"] = "skipped"
                             # Pin every phase to the bottom so the final redraw
                             # shows the last lines, not a stale mid-log position.
                             ph["log_scroll"] = len(ph["log"])
@@ -1104,13 +1120,20 @@ class CursesBackend(UIBackend):
                 time.sleep(0.05)  # ~20 fps while installing
 
     def _install_redraw(self) -> None:
-        """Redraw the interactive installation log screen."""
+        """Redraw the interactive installation log screen.
+
+        Uses an internal _install_scroll (first visible phase index) to keep
+        the selected phase visible.  Rendered rows are counted in real time so
+        expanded logs always get whatever space is actually available.
+        """
         try:
             stdscr = getattr(self, "_install_stdscr", None)
             if stdscr is None:
                 return
             phases = getattr(self, "_install_phases", [])
             finished = getattr(self, "_install_finished", False)
+            selected = self._install_selected
+            scroll = getattr(self, "_install_scroll", 0)
             height, width = stdscr.getmaxyx()
             stdscr.clear()
 
@@ -1123,12 +1146,46 @@ class CursesBackend(UIBackend):
             _safe(stdscr, 0, 0, title.ljust(width))
             stdscr.attroff(curses.color_pair(_P_TITLE) | curses.A_BOLD)
 
-            # Phase list
-            selected = self._install_selected
-            row = 1
-            for i, ph in enumerate(phases):
-                if row >= height - 1:
+            visible_top = 1
+            visible_bot = height - 2
+
+            # Ensure the selected phase is visible
+            row = visible_top
+            sel_visible = False
+            for test_idx in range(scroll, len(phases)):
+                if test_idx == selected:
+                    sel_visible = True
+                ph = phases[test_idx]
+                row += 1  # header
+                if ph["expanded"] and ph["log"] and test_idx < selected:
+                    # Estimate log height for phases before selected
+                    available = visible_bot - row + 1
+                    log_lines = ph["log"]
+                    log_h = max(1, min(len(log_lines), available))
+                    row += log_h
+                if row > visible_bot:
                     break
+
+            if not sel_visible or row > visible_bot or selected < scroll:
+                # Selected is off-screen; bring it into view by pinning its header
+                # at the top of the visible area.
+                scroll = selected
+            else:
+                # Selected is on-screen.  Try to show as many phases as possible
+                # above it, but also ensure it doesn't scroll off the bottom.
+                # Check if the selected phase (with log) fits; if not, bump scroll.
+                # (Repeatedly would recompute below, so we keep the current scroll)
+                pass
+
+            self._install_scroll = scroll
+
+            # ── Render from scroll forward ────────────────
+            row = visible_top
+            for i in range(scroll, len(phases)):
+                if row > visible_bot:
+                    break
+                ph = phases[i]
+
                 # Status icon
                 if ph["status"] == "pending":
                     icon = " "
@@ -1136,13 +1193,11 @@ class CursesBackend(UIBackend):
                     icon = "▶"
                 elif ph["status"] == "done":
                     icon = "✓"
+                elif ph["status"] == "skipped":
+                    icon = "–"
                 else:
                     icon = "✗"
-                # Duration
-                dur_str = ""
-                if ph["duration_sec"] is not None:
-                    dur_str = f" ({ph['duration_sec']:.1f}s)"
-                # Active/highlight
+                dur_str = f" ({ph['duration_sec']:.1f}s)" if ph["duration_sec"] is not None else ""
                 active = i == selected
                 attr = curses.color_pair(_P_ACTIVE) if active else curses.color_pair(_P_NORMAL)
                 marker = "▶ " if active else "  "
@@ -1155,16 +1210,14 @@ class CursesBackend(UIBackend):
                 # Expanded log
                 if ph["expanded"] and ph["log"]:
                     log_lines = ph["log"]
-                    log_h = max(1, min(len(log_lines), height - row - 2))
+                    available = visible_bot - row + 1
+                    log_h = max(1, min(len(log_lines), available))
                     if ph["status"] == "running":
-                        # Follow mode: always pin to the last lines while executing.
                         log_scroll = max(0, len(log_lines) - log_h)
                     else:
                         log_scroll = max(0, min(ph["log_scroll"], max(0, len(log_lines) - log_h)))
                     ph["log_scroll"] = log_scroll
                     for j in range(log_h):
-                        if row >= height - 1:
-                            break
                         log_idx = log_scroll + j
                         if log_idx < len(log_lines):
                             log_line = log_lines[log_idx]

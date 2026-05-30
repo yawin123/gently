@@ -337,8 +337,13 @@ hosts = [
 ]
 
 # Jobs passed to make (-jN in MAKEOPTS).
-# If omitted, the installer calculates them by summing all slots
-# declared in hosts (including localhost).
+# If omitted, the installer calculates them automatically:
+#   - With distcc: uses 3x local CPUs (e.g., 8 CPUs → -j24 -l8)
+#     where -l8 limits local jobs to 8 (your local CPUs)
+#   - Without distcc: uses (local CPUs + 1) (e.g., 8 CPUs → -j9)
+#
+# The -l flag ensures local compilation continues if remote hosts fail.
+# You can override the automatic calculation by specifying a custom value:
 # makeopts_jobs = 14
 
 # Pump mode: distributed preprocessing on the remote host.

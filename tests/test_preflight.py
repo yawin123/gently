@@ -29,19 +29,26 @@ class _FakeRunner:
         mounted_output: str = "",
         readable_paths: set[str] | None = None,
         file_sizes: dict[str, int] | None = None,
-        fail_distcc_hosts: set[str] | None = None,
-        missing_commands: set[str] | None = None,
         dry_run: bool = False,
     ):
         self.free_bytes = free_bytes
         self.mounted_output = mounted_output
         self.readable_paths = readable_paths if readable_paths is not None else set()
         self.file_sizes = dict(file_sizes or {})
-        self.fail_distcc_hosts = set(fail_distcc_hosts or set())
-        self.missing_commands = set(missing_commands or set())
         self.dry_run = dry_run
         self.shell_commands: list[str] = []
         self.run_specs: list[CommandSpec] = []
+        self.chroot_path: str | None = None
+        self.packages_installed: list[str] = []
+        self.tarballs_extracted: list[str] = []
+        self.services_enabled: list[str] = []
+        self.services_added: list[str] = []
+        self.users_created: list[tuple[str, str | None, list[str] | None]] = []
+        self.files_written: dict[str, str] = {}
+        self.bootloader_installed: list[str] = []
+        self.kernel_installed: list[str] = []
+        self.kernel_initramfs: list[tuple[str, str]] = []
+        self.kernel_grub_config: list[tuple[str, str, str | None, list[str] | None]] = []
 
     def run_shell(
         self,
@@ -63,11 +70,6 @@ class _FakeRunner:
             out = f"{self.free_bytes}\n"
         elif command.startswith("lsblk -nro MOUNTPOINT"):
             out = self.mounted_output
-        elif command.startswith("command -v "):
-            cmd_name = command[len("command -v "):].split(" ", 1)[0]
-            if cmd_name in self.missing_commands:
-                rc = 1
-                err = "missing command"
         elif command.startswith("test -b "):
             rc = 0
         elif command.startswith("test -r "):
@@ -104,23 +106,6 @@ class _FakeRunner:
         )
         if check and rc != 0:
             raise CommandExecutionError(CommandSpec(argv=result.argv, check=check, phase=phase), result)
-        return result
-
-    def run(self, spec: CommandSpec) -> CommandResult:
-        self.run_specs.append(spec)
-        host = spec.argv[-2]
-        rc = 1 if host in self.fail_distcc_hosts else 0
-        result = CommandResult(
-            argv=spec.argv,
-            returncode=rc,
-            stdout="",
-            stderr="distcc connect failed" if rc else "",
-            duration_sec=0.0,
-            transport=self.transport,
-            phase=spec.phase,
-        )
-        if spec.check and rc != 0:
-            raise CommandExecutionError(spec, result)
         return result
 
 
@@ -178,39 +163,6 @@ def test_preflight_requires_readable_stage3_local_path():
     raise AssertionError("Expected PreflightError")
 
 
-def test_preflight_distcc_checks_reachability():
-    cfg = GentlyConfig(
-        disks=[DiskConfig(device="/dev/sda")],
-        distcc=DistccConfig(enabled=True, hosts=["192.168.1.10/8,lzo"], port=3632),
-    )
-    runner = _FakeRunner(fail_distcc_hosts={"192.168.1.10"})
-
-    try:
-        execute(cfg, runner)
-    except PreflightError as exc:
-        assert "distcc" in str(exc).lower() or "failed" in str(exc).lower()
-        print("PASS  preflight validates distcc host reachability")
-        return
-    raise AssertionError("Expected PreflightError")
-
-
-def test_preflight_distcc_requires_local_binary():
-    cfg = GentlyConfig(
-        disks=[DiskConfig(device="/dev/sda")],
-        distcc=DistccConfig(enabled=True, hosts=["192.168.1.10/8,lzo"], port=3632),
-    )
-    runner = _FakeRunner(missing_commands={"distcc"})
-
-    try:
-        execute(cfg, runner)
-    except PreflightError as exc:
-        assert "distcc" in str(exc).lower()
-        assert "installed" in str(exc).lower() or "bootstrap" in str(exc).lower()
-        print("PASS  preflight requires local distcc binary when enabled")
-        return
-    raise AssertionError("Expected PreflightError")
-
-
 def test_stage3_auto_download_sets_local_path():
     cfg = GentlyConfig(
         stage3=Stage3Config(),
@@ -251,7 +203,7 @@ def test_stage3_download_idempotent():
     print("PASS  stage3 download is idempotent")
 
 
-def test_stage3_download_skipped_in_dry_run():
+def test_stage3_download_shown_in_dry_run():
     cfg = GentlyConfig(
         stage3=Stage3Config(),
         disks=[DiskConfig(device="/dev/sda")],
@@ -260,19 +212,17 @@ def test_stage3_download_skipped_in_dry_run():
 
     execute(cfg, runner)
 
-    assert cfg.stage3.local_path is None
-    assert not any(cmd.startswith('python3 -c "import urllib.request;') for cmd in runner.shell_commands), runner.shell_commands
-    print("PASS  stage3 download skipped in dry-run")
+    # In dry-run, download commands are emitted (shown to the user) but are no-ops.
+    assert any(cmd.startswith('python3 -c "import urllib.request;') for cmd in runner.shell_commands), runner.shell_commands
+    print("PASS  stage3 download shown in dry-run (no-op)")
 
 
 if __name__ == "__main__":
     test_preflight_success_runs_checks()
     test_preflight_rejects_mounted_disk()
     test_preflight_requires_readable_stage3_local_path()
-    test_preflight_distcc_checks_reachability()
-    test_preflight_distcc_requires_local_binary()
     test_stage3_auto_download_sets_local_path()
     test_stage3_download_idempotent()
-    test_stage3_download_skipped_in_dry_run()
+    test_stage3_download_shown_in_dry_run()
     print()
     print("All preflight tests passed.")

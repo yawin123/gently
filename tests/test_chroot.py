@@ -137,30 +137,34 @@ def test_execute_sets_chroot_path():
     print("PASS  execute sets runner.chroot_path to mountpoint")
 
 
-def test_execute_dry_run_sets_chroot_path_without_mounts():
+def test_execute_dry_run_still_issues_commands():
+    """In dry_run the runner handles no-op execution; execute() must not skip commands."""
     runner = _FakeRunner(dry_run=True)
     execute(GentlyConfig(), runner)
     assert runner.chroot_path == MOUNTPOINT, runner.chroot_path
-    assert not runner.shell_commands, runner.shell_commands
-    assert not runner.cleanup_stack
-    print("PASS  dry-run sets chroot_path but skips all mounts")
+    # Commands are issued (runner logs them as [dry-run] and skips actual execution).
+    mount_cmds = [c for c in runner.shell_commands if c.startswith("mount ")]
+    assert len(mount_cmds) == 6, f"Expected 6 mount commands in dry-run, got: {mount_cmds}"
+    assert len(runner.cleanup_stack) == 4
+    print("PASS  dry-run still issues commands and registers cleanups (runner handles the no-op)")
 
 
 def test_run_shell_wraps_command_when_chroot_path_set():
-    """LocalRunner.run_shell must wrap commands with chroot when chroot_path is set."""
+    """LocalRunner.run_shell must wrap commands with chroot when chroot=True and chroot_path is set."""
     runner = LocalRunner(dry_run=True)
     runner.chroot_path = "/mnt/gentoo"
-    result = runner.run_shell("emerge --sync", phase="test")
-    # In dry-run the command is skipped, but the argv should reflect the chroot wrap.
+    result = runner.run_shell("emerge --sync", phase="test", chroot=True)
     assert result.argv == ["chroot", "/mnt/gentoo", "/bin/bash", "-lc", "emerge --sync"], result.argv
     print("PASS  run_shell wraps command with chroot when chroot_path is set")
 
 
-def test_run_shell_no_wrap_when_chroot_path_unset():
+def test_run_shell_no_wrap_when_chroot_false():
+    """run_shell(chroot=False) must never wrap, even if chroot_path is set."""
     runner = LocalRunner(dry_run=True)
-    result = runner.run_shell("ls /", phase="test")
-    assert result.argv == ["bash", "-lc", "ls /"], result.argv
-    print("PASS  run_shell does NOT wrap when chroot_path is None")
+    runner.chroot_path = "/mnt/gentoo"
+    result = runner.run_shell("mount --bind /dev /mnt/gentoo/dev", phase="test")
+    assert result.argv == ["bash", "-lc", "mount --bind /dev /mnt/gentoo/dev"], result.argv
+    print("PASS  run_shell does NOT wrap when chroot=False (default)")
 
 
 def test_run_cleanup_clears_chroot_path():
@@ -178,9 +182,9 @@ if __name__ == "__main__":
     test_execute_cleanup_order_is_lifo()
     test_execute_copies_resolv_conf()
     test_execute_sets_chroot_path()
-    test_execute_dry_run_sets_chroot_path_without_mounts()
+    test_execute_dry_run_still_issues_commands()
     test_run_shell_wraps_command_when_chroot_path_set()
-    test_run_shell_no_wrap_when_chroot_path_unset()
+    test_run_shell_no_wrap_when_chroot_false()
     test_run_cleanup_clears_chroot_path()
     print()
     print("All chroot tests passed.")

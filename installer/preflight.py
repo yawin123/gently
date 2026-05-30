@@ -6,11 +6,10 @@ import shlex
 from model.config import GentlyConfig
 from util.parse import parse_int
 
-from installer.runner import CommandSpec, Runner, RunnerError
+from installer.runner import Runner, RunnerError
 
 
 PHASE_KEY = "preflight"
-DISTCC_DEFAULT_PORT = 3632
 STAGE3_CACHE = "/tmp/gently-stage3.tar.xz"
 REQUIRED_COMMANDS = [
 	"parted",
@@ -116,6 +115,9 @@ def _autobuilds_latest_url(mirror: str, arch: str, variant: str, runner: Runner)
 		phase=PHASE_KEY,
 	).stdout
 
+	if runner.dry_run:
+		return f"{mirror}/releases/{arch}/autobuilds/<stage3-{arch}-{variant}-latest.tar.xz>"
+
 	for line in contents.splitlines():
 		line = line.strip()
 		if not line:
@@ -139,10 +141,6 @@ def _ensure_stage3_available(config: GentlyConfig, runner: Runner) -> None:
 
 	# If a local path is specified, just verify it (already done in _check_stage3_local_path).
 	if stage3.local_path:
-		return
-
-	# Dry-run: skip network downloads entirely so planning tests stay fast.
-	if runner.dry_run:
 		return
 
 	# If a tarball is already cached, skip download.
@@ -184,52 +182,6 @@ def _ensure_stage3_available(config: GentlyConfig, runner: Runner) -> None:
 	config.stage3.local_path = STAGE3_CACHE
 
 
-def _parse_distcc_host(spec: str) -> str:
-	base = spec.split("/", 1)[0]
-	base = base.split(",", 1)[0]
-	return base.strip()
-
-
-def _check_distcc_hosts(config: GentlyConfig, runner: Runner) -> None:
-	distcc = config.distcc
-	if distcc is None or not distcc.enabled:
-		return
-
-	# Distcc must be available in the live environment to offload compilations.
-	try:
-		runner.run_shell("command -v distcc >/dev/null", phase=PHASE_KEY)
-	except RunnerError as exc:
-		raise PreflightError(
-			"distcc is enabled but the distcc client is not installed in the live environment. "
-			"Bootstrap it first (sys-devel/distcc) before running the installer."
-		) from exc
-
-	hosts = list(distcc.hosts or [])
-	if not hosts:
-		raise PreflightError("distcc.enabled=true but distcc.hosts is empty")
-
-	port = distcc.port or DISTCC_DEFAULT_PORT
-	for host_spec in hosts:
-		host = _parse_distcc_host(host_spec)
-		if not host:
-			raise PreflightError(f"Invalid distcc host entry: {host_spec!r}")
-
-		runner.run(
-			CommandSpec(
-				argv=[
-					"python3",
-					"-c",
-					(
-						"import socket,sys; "
-						"socket.create_connection((sys.argv[1], int(sys.argv[2])), 2).close()"
-					),
-					host,
-					str(port),
-				],
-				phase=PHASE_KEY,
-			)
-		)
-
 
 def execute(config: GentlyConfig, runner: Runner) -> None:
 	try:
@@ -238,6 +190,5 @@ def execute(config: GentlyConfig, runner: Runner) -> None:
 		_check_disks(config, runner)
 		_check_stage3_local_path(config, runner)
 		_ensure_stage3_available(config, runner)
-		_check_distcc_hosts(config, runner)
 	except RunnerError as exc:
 		raise PreflightError(str(exc)) from exc

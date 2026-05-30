@@ -114,12 +114,12 @@ def _compute_positions(
 
 def _query_disk_bytes(device: str, runner: Runner) -> int:
 	"""Query the block device size in bytes via lsblk."""
-	if runner.dry_run:
-		return FALLBACK_DISK_BYTES
 	result = runner.run_shell(
 		f"lsblk -b -n -o SIZE {shlex.quote(device)} | head -1",
 		phase=PHASE_KEY,
 	)
+	if runner.dry_run:
+		return FALLBACK_DISK_BYTES
 	return parse_int(result.stdout, f"disk size for {device}", PartitionError)
 
 
@@ -294,13 +294,13 @@ def _activate_swap(disk: DiskConfig, runner: Runner) -> None:
 
 def _get_uuid(device: str, runner: Runner) -> str | None:
 	"""Query the filesystem UUID of *device* via blkid. Returns None on failure."""
-	if runner.dry_run:
-		return None
 	result = runner.run_shell(
 		f"blkid -s UUID -o value {shlex.quote(device)}",
 		check=False,
 		phase=PHASE_KEY,
 	)
+	if runner.dry_run:
+		return None
 	uuid = result.stdout.strip()
 	return uuid if uuid else None
 
@@ -364,13 +364,7 @@ def _verify_partitions(
 	runner: Runner,
 	mountpoint: str = MOUNTPOINT,
 ) -> None:
-	"""Verify that partitions exist, have the expected filesystem type, and are mounted.
-
-	Skipped in dry-run mode because no real block devices are created.
-	"""
-	if runner.dry_run:
-		return
-
+	"""Verify that partitions exist, have the expected filesystem type, and are mounted."""
 	# 1. Each partition device node must exist.
 	for i, part in enumerate(disk.partitions, start=1):
 		pdev = _partition_device(disk.device, i)  # type: ignore[arg-type]
