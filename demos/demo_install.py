@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.join(_ROOT, "vendor"))
 from model.config import load_config
 from model.validators import validate_coherence
 from installer.runner import build_runner, run_installation_interactive
-from ui.curses_backend import CursesBackend
+from ui import create_backend
 
 
 def main() -> None:
@@ -60,7 +60,7 @@ def main() -> None:
     print("-" * 40)
     print("Iniciando instalación — abriendo interfaz…")
 
-    backend = CursesBackend()
+    backend = create_backend()
 
     try:
         report = run_installation_interactive(config, runner, backend)

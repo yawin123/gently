@@ -106,6 +106,9 @@ class Runner(ABC):
 		# Clear chroot mode first so all cleanup commands run on the host, not inside
 		# the chroot (umounts, swapoff, etc. must run on the host filesystem).
 		self.chroot_path = None
+		# Clear the abort event so cleanup actions can always run — the user
+		# already requested the abort and cleanup *must* execute regardless.
+		self.abort_event = None
 		errors: list[tuple[str, Exception]] = []
 		while self.cleanup_stack:
 			entry = self.cleanup_stack.pop()
@@ -139,6 +142,11 @@ class Runner(ABC):
 	def run(self, spec: CommandSpec) -> CommandResult:
 		if not spec.argv:
 			raise RunnerError("CommandSpec.argv cannot be empty")
+
+		# Abort check between commands within a phase so the user does not have
+		# to wait until the next phase boundary (q/Esc in the curses UI).
+		if self.abort_event is not None and self.abort_event.is_set():
+			raise AbortError("Installation aborted by user")
 
 		phase = spec.phase or ""
 		cmd_line = f"$ {' '.join(spec.argv)}"
@@ -616,6 +624,10 @@ def run_installation(
 		if backend is not None:
 			backend.install_progress_begin([p.key for p in selected])
 			runner.log_callback = backend.install_progress_update
+			# In standalone mode (when prepare_install was not called),
+			# wire the abort event so the UI's q/Esc reaches the runner.
+			if runner.abort_event is None:
+				runner.abort_event = getattr(backend, '_abort_event', None)
 
 		for phase in selected:
 			# Check for abort request between phases.
@@ -720,6 +732,8 @@ def run_installation_interactive(
 
 	backend.prepare_install(selected)
 	runner.abort_event = threading.Event()
+	# Let the UI abort (Q/Esc) signal the same event the runner checks.
+	backend._abort_event = runner.abort_event
 
 	report_box: list[Any] = [None]
 	error_box: list[Any] = [None]

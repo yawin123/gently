@@ -7,8 +7,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "vendor"))
 
 from model.config import load_config, save_config, ConfigError, GentlyConfig
 from model.validators import validate_coherence
+from ui import create_backend
 from ui.abstract import UIBackend
-from ui.curses_backend import CursesBackend
 from installer.runner import LocalRunner, run_installation_interactive
 from ui.forms.system import SystemForm
 from ui.forms.stage3 import Stage3Form
@@ -94,7 +94,7 @@ def _build_summary_sections(config: GentlyConfig) -> list[tuple[str, dict[str, A
 
 
 def main() -> None:
-    backend = CursesBackend()
+    backend = create_backend()
     config = load_config("config.toml")
     config, action = collect(config, backend)
     save_config(config, "config.toml")

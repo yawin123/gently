@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.join(_ROOT, "vendor"))
 
 from installer.preflight import PreflightError, STAGE3_CACHE, execute
 from installer.runner import CommandExecutionError, CommandResult, CommandSpec
-from model.config import DiskConfig, DistccConfig, GentlyConfig, Stage3Config
+from model.config import DiskConfig, GentlyConfig, Stage3Config
 
 
 class _FakeRunner:
@@ -37,18 +37,6 @@ class _FakeRunner:
         self.file_sizes = dict(file_sizes or {})
         self.dry_run = dry_run
         self.shell_commands: list[str] = []
-        self.run_specs: list[CommandSpec] = []
-        self.chroot_path: str | None = None
-        self.packages_installed: list[str] = []
-        self.tarballs_extracted: list[str] = []
-        self.services_enabled: list[str] = []
-        self.services_added: list[str] = []
-        self.users_created: list[tuple[str, str | None, list[str] | None]] = []
-        self.files_written: dict[str, str] = {}
-        self.bootloader_installed: list[str] = []
-        self.kernel_installed: list[str] = []
-        self.kernel_initramfs: list[tuple[str, str]] = []
-        self.kernel_grub_config: list[tuple[str, str, str | None, list[str] | None]] = []
 
     def run_shell(
         self,
@@ -113,7 +101,6 @@ def test_preflight_success_runs_checks():
     cfg = GentlyConfig(
         stage3=Stage3Config(),
         disks=[DiskConfig(device="/dev/sda")],
-        distcc=DistccConfig(enabled=False),
     )
     runner = _FakeRunner()
 

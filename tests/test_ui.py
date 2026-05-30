@@ -8,7 +8,7 @@ sys.path.insert(0, _ROOT)
 sys.path.insert(0, os.path.join(_ROOT, "vendor"))
 
 from ui.abstract import FormSpec, FieldSpec
-from ui.curses_backend import CursesBackend
+from ui import create_backend
 
 TEST_FORM = FormSpec(
     title="Gently — UI smoke test",
@@ -63,7 +63,7 @@ SUMMARY_SECTIONS = [
     ("packages", {"extra": "vim, git"}),
 ]
 
-backend = CursesBackend()
+backend = create_backend()
 
 print("=== Test 1: show_form ===")
 result = backend.show_form(TEST_FORM)

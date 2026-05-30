@@ -16,8 +16,8 @@ sys.path.insert(0, _ROOT)
 sys.path.insert(0, os.path.join(_ROOT, "vendor"))
 
 import tomli_w
+from ui import create_backend
 from model.config import load_config, GentlyConfig
-from ui.curses_backend import CursesBackend
 from gently import collect
 
 
@@ -30,7 +30,7 @@ def main() -> None:
         print("Iniciando con config vacío...")
         config = GentlyConfig()
 
-    backend = CursesBackend()
+    backend = create_backend()
     result = collect(config, backend)
 
     print("\n--- Config resultante (TOML) ---")

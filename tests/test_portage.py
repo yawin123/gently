@@ -170,8 +170,11 @@ def test_distcc_tcp_check_runs_as_warning():
 def test_execute_skips_distcc_when_disabled():
 	runner = _FakeRunner()
 	execute(GentlyConfig(), runner)
-	# execute() calls _setup_portage which runs locale-gen, emerge-webrsync, etc
-	# These are normal portage operations, not distcc-related
+	# execute() runs portage setup (locale-gen, emerge-webrsync, make.conf etc.)
+	# These are normal portage operations, not distcc-related.
+	distcc_cmds = [c for c in runner.shell_commands if "distcc" in c.lower()]
+	assert not distcc_cmds, \
+		f"distcc-related commands should not appear when distcc is disabled: {distcc_cmds}"
 	print("PASS  execute() with no distcc config runs portage setup normally")
 
 
