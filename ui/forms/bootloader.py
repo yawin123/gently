@@ -29,6 +29,13 @@ class BootloaderForm(SectionForm):
                 FieldSpec(key="type", label="Bootloader type", i18n_key="form_bootloader_type_label",
                           type="choice", default=b.type or "grub", options=_TYPES,
                           help="form_bootloader_type_help"),
+                FieldSpec(key="_grub_sep", label="form_bootloader_sep_grub",
+                          i18n_key="form_bootloader_sep_grub", type="separator",
+                          required=False, visible_when=("type", "grub")),
+                FieldSpec(key="grub_platforms", label="GRUB platforms",
+                          i18n_key="form_bootloader_grub_platforms_label",
+                          type="list", default=list(grub.platforms) if grub.platforms else ["efi-64"],
+                          required=False, help="form_bootloader_grub_platforms_help"),
                 FieldSpec(key="grub_install_disk", label="GRUB install disk",
                           i18n_key="form_bootloader_grub_install_disk_label",
                           type="text", default=grub.install_disk, required=False,
@@ -49,6 +56,7 @@ class BootloaderForm(SectionForm):
         grub = None
         if btype == "grub":
             grub = BootloaderGrubConfig(
+                platforms=values.get("grub_platforms") or None,
                 install_disk=values.get("grub_install_disk") or None,
                 timeout=values.get("grub_timeout"),
                 cmdline_extra=values.get("grub_cmdline_extra") or None,

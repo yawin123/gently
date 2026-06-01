@@ -53,7 +53,7 @@ def _complete_config() -> GentlyConfig:
             accept_keywords="amd64", accept_license="@FREE",
             profile=PortageProfileConfig(name="default/linux/amd64/23.0"),
         ),
-        kernel=KernelConfig(method="genkernel"),
+        kernel=KernelConfig(method="installkernel"),
         bootloader=BootloaderConfig(type="grub", grub=BootloaderGrubConfig()),
         services=ServicesConfig(roles=ServicesRolesConfig(network="netifrc")),
         users=UsersConfig(accounts=[UserAccountConfig(name="root", password="secret")]),
@@ -110,7 +110,7 @@ def test_build_form_sanity():
         for f in spec.fields:
             assert f.key,   f"{type(form).__name__}: field missing key"
             assert f.label, f"{type(form).__name__}: field missing label"
-            assert f.type in ("text", "password", "choice", "bool", "list", "int", "subsection"), \
+            assert f.type in ("text", "password", "choice", "bool", "list", "int", "subsection", "separator"), \
                 f"{type(form).__name__}.{f.key}: unknown type {f.type!r}"
     print("PASS  build_form: all forms return valid FormSpec for empty config")
 
@@ -157,10 +157,15 @@ def test_apply_stage3():
 
 def test_apply_kernel():
     config = GentlyConfig()
-    values = {"method": "genkernel", "config_path": None, "extra_modules": None}
+    values = {"method": "installkernel", "binary": True, "config_path": None,
+              "extra_modules": None, "linux_firmware": True,
+              "intel_microcode": False, "sof_firmware": False}
     config = KernelForm().apply(config, values)
     assert KernelForm().is_complete(config)
-    assert config.kernel.method == "genkernel"
+    assert config.kernel.method == "installkernel"
+    assert config.kernel.binary is True
+    assert config.kernel.linux_firmware is True
+    assert config.kernel.intel_microcode is None  # False → stored as None
     print("PASS  KernelForm.apply")
 
 

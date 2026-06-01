@@ -125,6 +125,13 @@ class SystemForm(SectionForm):
                     help="form_system_hostname_help",
                 ),
                 FieldSpec(
+                    key="_localisation_sep",
+                    label="form_system_sep_localisation",
+                    i18n_key="form_system_sep_localisation",
+                    type="separator",
+                    required=False,
+                ),
+                FieldSpec(
                     key="timezone",
                     label="Timezone",
                     i18n_key="form_system_timezone_label",

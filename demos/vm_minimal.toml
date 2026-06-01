@@ -1,0 +1,73 @@
+# Gently demo — minimal config
+# Tests the fast path: no distcc, no credentials file, dhcpcd,
+# inline root password, single user, no extra packages.
+# Disk: /dev/sda 8GB — GPT + UEFI
+
+[system]
+hostname = "gently-min"
+timezone = "Europe/Madrid"
+locale   = "es_ES.UTF-8"
+locales  = ["es_ES.UTF-8 UTF-8"]
+keymap   = "es"
+lang     = "es_ES.UTF-8"
+
+[stage3]
+arch    = "amd64"
+variant = "openrc"
+mirror  = "https://distfiles.gentoo.org"
+
+[[disks]]
+id              = "primary"
+device          = "/dev/sda"
+partition_table = "gpt"
+boot_mode       = "uefi"
+
+[[disks.partitions]]
+label      = "esp"
+size       = "128M"
+filesystem = "vfat"
+mount      = "/boot/efi"
+flags      = ["esp"]
+
+[[disks.partitions]]
+label         = "root"
+size          = "remaining"
+filesystem    = "ext4"
+mount         = "/"
+mount_options = "noatime"
+
+[portage]
+cflags          = "-O2 -pipe"
+cxxflags        = "-O2 -pipe"
+use             = ["-bluetooth", "-cups", "-X"]
+accept_keywords = "amd64"
+accept_license  = "@FREE"
+
+[portage.profile]
+name = "default/linux/amd64/23.0"
+
+[kernel]
+method = "binary"
+
+[bootloader]
+type = "grub"
+
+[bootloader.grub]
+platforms = ["efi-64"]
+timeout   = 3
+
+[services.roles]
+network = "dhcpcd"
+ssh     = "openssh"
+
+# No cron, no logging daemon, no NTP — bare minimum.
+
+[[users.accounts]]
+name          = "root"
+password_hash = "$6$rounds=500000$testsalt$hashedpassword"
+
+[[users.accounts]]
+name   = "gently"
+groups = ["wheel"]
+shell  = "/bin/bash"
+# No credentials_file: password prompt at runtime.

@@ -143,6 +143,15 @@ class PortageRepoConfig(_ToDictMixin):
 
 
 @dataclass
+class PortageBinrepoConfig(_ToDictMixin):
+    name:             str | None  = field(default=None)
+    sync_uri:         str | None  = field(default=None)
+    subarch:          str | None  = field(default=None)
+    priority:         int | None  = field(default=None)
+    verify_signature: bool | None = field(default=None)
+
+
+@dataclass
 class PortageProfileConfig(_ToDictMixin):
     name: str | None = field(default=None)
 
@@ -162,9 +171,9 @@ class PortageConfig(_ToDictMixin):
     features:        list[str] | None       = field(default=None)
     getbinpkg:       bool | None            = field(default=None)
     binpkg_format:   str | None             = field(default=None)
-    binhost:         str | None             = field(default=None)
     profile:         PortageProfileConfig | None  = field(default=None)
     repos:           list[PortageRepoConfig] | None = field(default=None)
+    binrepos:        list[PortageBinrepoConfig] | None = field(default=None)
     packages:        PortagePackagesConfig | None   = field(default=None)
 
 
@@ -175,9 +184,13 @@ class KernelCustomConfig(_ToDictMixin):
 
 @dataclass
 class KernelConfig(_ToDictMixin):
-    method:        str | None              = field(default=None)
-    extra_modules: list[str] | None        = field(default=None)
-    custom:        KernelCustomConfig | None = field(default=None)
+    method:          str | None               = field(default=None)
+    binary:          bool | None              = field(default=None)
+    extra_modules:   list[str] | None         = field(default=None)
+    linux_firmware:  bool | None              = field(default=None)
+    intel_microcode: bool | None              = field(default=None)
+    sof_firmware:    bool | None              = field(default=None)
+    custom:          KernelCustomConfig | None = field(default=None)
 
 
 @dataclass
@@ -390,6 +403,21 @@ def _load_portage(raw: dict) -> PortageConfig | None:
             if isinstance(r, dict)
         ]
 
+    binrepos_raw = p.get("binrepos", [])
+    binrepos = None
+    if isinstance(binrepos_raw, list) and binrepos_raw:
+        binrepos = [
+            PortageBinrepoConfig(
+                name=r.get("name"),
+                sync_uri=r.get("sync_uri"),
+                subarch=r.get("subarch"),
+                priority=r.get("priority"),
+                verify_signature=r.get("verify_signature"),
+            )
+            for r in binrepos_raw
+            if isinstance(r, dict)
+        ]
+
     packages_raw = p.get("packages")
     packages = _load_portage_packages(packages_raw) if isinstance(packages_raw, dict) else None
 
@@ -407,9 +435,9 @@ def _load_portage(raw: dict) -> PortageConfig | None:
         features=_expect_type(p.get("features"), list, "portage.features"),
         getbinpkg=p.get("getbinpkg"),
         binpkg_format=_expect_type(p.get("binpkg_format"), str, "portage.binpkg_format"),
-        binhost=_expect_type(p.get("binhost"), str, "portage.binhost"),
         profile=profile,
         repos=repos,
+        binrepos=binrepos,
         packages=packages,
     )
 
@@ -426,7 +454,11 @@ def _load_kernel(raw: dict) -> KernelConfig | None:
         )
     return KernelConfig(
         method=_expect_type(k.get("method"), str, "kernel.method"),
+        binary=_expect_type(k.get("binary"), bool, "kernel.binary"),
         extra_modules=_expect_type(k.get("extra_modules"), list, "kernel.extra_modules"),
+        linux_firmware=_expect_type(k.get("linux_firmware"), bool, "kernel.linux_firmware"),
+        intel_microcode=_expect_type(k.get("intel_microcode"), bool, "kernel.intel_microcode"),
+        sof_firmware=_expect_type(k.get("sof_firmware"), bool, "kernel.sof_firmware"),
         custom=custom,
     )
 

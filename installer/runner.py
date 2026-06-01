@@ -594,6 +594,7 @@ def default_install_phases() -> list[InstallPhase]:
 	from installer.stage3 import execute as stage3_execute
 	from installer.chroot import execute as chroot_prep_execute
 	from installer.portage import execute as portage_execute
+	from installer.kernel import execute as kernel_execute
 
 	return [
 		InstallPhase("preflight",   "Preflight",        preflight_execute),
@@ -601,7 +602,7 @@ def default_install_phases() -> list[InstallPhase]:
 		InstallPhase("stage3",      "Stage3",           stage3_execute),
 		InstallPhase("chroot_prep", "Chroot Prep",      chroot_prep_execute),
 		InstallPhase("portage",     "Portage",          portage_execute),
-		InstallPhase("kernel",      "Kernel",           _placeholder),
+		InstallPhase("kernel",      "Kernel",           kernel_execute),
 		InstallPhase("system",      "System",           _placeholder),
 		InstallPhase("services",    "Services",         _placeholder),
 		InstallPhase("users",       "Users",            _placeholder),

@@ -64,6 +64,15 @@ class UsersForm(SectionForm):
                     help="form_users_credentials_file_help",
                 ),
                 FieldSpec(
+                    key="credentials_file_shadow",
+                    label="Shadow credentials file",
+                    i18n_key="form_users_credentials_file_shadow_label",
+                    type="text",
+                    default=u.credentials_file_shadow,
+                    required=False,
+                    help="form_users_credentials_file_shadow_help",
+                ),
+                FieldSpec(
                     key="root_password",
                     label="Root password",
                     i18n_key="form_users_root_password_label",
@@ -180,6 +189,7 @@ class UsersForm(SectionForm):
     def apply(self, config: GentlyConfig, values: dict) -> GentlyConfig:
         u = config.users or UsersConfig()
         u.credentials_file = values.get("credentials_file") or None
+        u.credentials_file_shadow = values.get("credentials_file_shadow") or None
 
         root_pwd = values.get("root_password") or None
         if root_pwd:

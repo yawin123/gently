@@ -19,10 +19,50 @@ class PortageError(RunnerError):
 
 
 # ---------------------------------------------------------------------------
-# Distcc setup
+# Profile selection
 # ---------------------------------------------------------------------------
 
+def _apply_profile(config: GentlyConfig, runner: Runner) -> None:
+	"""Apply the explicit profile from config, validating it exists first.
+
+	If portage.profile.name is absent the stage3's built-in default is left
+	untouched — it is already aligned with the chosen variant.
+	Must be called after emerge-webrsync so the profile tree is available.
+	"""
+	if not (config.portage and config.portage.profile and config.portage.profile.name):
+		return
+
+	profile = config.portage.profile.name
+	result = runner.run_shell(
+		"eselect profile list",
+		phase=PHASE_KEY,
+		chroot=True,
+		check=False,
+	)
+	if profile not in result.stdout:
+		raise PortageError(
+			f"Profile '{profile}' not found in the available profile list. "
+			"Run 'eselect profile list' inside the chroot to see valid options."
+		)
+	runner.run_shell(
+		f"eselect profile set {shlex.quote(profile)}",
+		phase=PHASE_KEY,
+		chroot=True,
+	)
+
+
 def _setup_portage(config: GentlyConfig, runner: Runner) -> None:
+	# Configure timezone before locale-gen (handbook order).
+	# Use a relative symlink so it works correctly with alternate ROOT environments.
+	if config.system and config.system.timezone:
+		timezone = config.system.timezone
+		zoneinfo_rel = f"../usr/share/zoneinfo/{timezone}"
+		runner.run_shell(
+			f"ln -sf {shlex.quote(zoneinfo_rel)} /etc/localtime",
+			phase=PHASE_KEY,
+			chroot=True,
+		)
+
 	# Preconfigure locale.gen with user's locale to avoid generating 500+ locales
 	if config.system and config.system.locale:
 		locale_entry = f"{config.system.locale} UTF-8"
@@ -43,15 +83,10 @@ def _setup_portage(config: GentlyConfig, runner: Runner) -> None:
 	
 	# Synchronize the Portage tree
 	runner.run_shell("emerge-webrsync", phase=PHASE_KEY, chroot=True)
-	
-	# Select profile if specified
-	if config.portage and config.portage.profile and config.portage.profile.name:
-		profile = config.portage.profile.name
-		runner.run_shell(
-			f"eselect profile set {shlex.quote(profile)}",
-			phase=PHASE_KEY,
-			chroot=True,
-		)
+
+	# Apply explicit profile from config (validates against eselect list first).
+	# Must run after emerge-webrsync so the profile tree is available.
+	_apply_profile(config, runner)
 
 def _parse_distcc_host(spec: str) -> str:
 	"""Extract hostname/IP from a distcc host spec, stripping /N and ,options."""
@@ -218,24 +253,37 @@ def _write_makeconf(config: GentlyConfig, runner: Runner) -> None:
 	if config.portage and config.portage.input_devices:
 		input_str = " ".join(config.portage.input_devices)
 		lines.append(f'INPUT_DEVICES="{input_str}"')
-	
-	# Add distcc configuration if enabled
+
+	# Add GENTOO_MIRRORS if specified
+	if config.portage and config.portage.mirrors:
+		mirrors_str = " ".join(config.portage.mirrors)
+		lines.append(f'GENTOO_MIRRORS="{mirrors_str}"')
+
+	# Binary package host (binpkg)
+	# Binary repo entries go to binrepos.conf via _setup_binrepos(), not here.
+	if config.portage and config.portage.binpkg_format:
+		lines.append(f'BINPKG_FORMAT="{config.portage.binpkg_format}"')
+
+	# Inject extra FEATURES tokens (getbinpkg, distcc).
+	# We locate the existing FEATURES= line if present and append to it,
+	# or create a new one.
+	extra_features: list[str] = []
+	if config.portage and config.portage.getbinpkg:
+		extra_features.append("getbinpkg")
 	if distcc_enabled and config.distcc:
 		d = config.distcc
 		if d.hosts:
 			hosts_str = " ".join(d.hosts)
 			lines.append(f'DISTCC_HOSTS="{hosts_str}"')
-		# FEATURES: merge distcc with any user-specified features
-		features_line = None
-		for i, line in enumerate(lines):
-			if line.startswith("FEATURES="):
-				features_line = i
-				break
+		extra_features.append("distcc")
+	if extra_features:
+		features_line = next((i for i, l in enumerate(lines) if l.startswith("FEATURES=")), None)
+		token_str = " ".join(extra_features)
 		if features_line is not None:
-			lines[features_line] = lines[features_line].rstrip('"') + ' distcc"'
+			lines[features_line] = lines[features_line].rstrip('"') + f' {token_str}"'
 		else:
-			lines.append('FEATURES="distcc"')
-	
+			lines.append(f'FEATURES="{token_str}"')
+
 	# Write the make.conf file — first line overwrites, rest append
 	for i, line in enumerate(lines):
 		op = ">" if i == 0 else ">>"
@@ -312,6 +360,39 @@ def _setup_distcc(config: GentlyConfig, runner: Runner) -> None:
 # Phase entry point
 # ---------------------------------------------------------------------------
 
+def _setup_cpu_flags(config: GentlyConfig, runner: Runner) -> None:
+	"""Write CPU_FLAGS_* into /etc/portage/package.use/00cpu-flags.
+
+	If config.portage.cpu_flags is set, use those values directly.
+	Otherwise, emerge cpuid2cpuflags and auto-detect them from the running CPU.
+	"""
+	runner.run_shell(
+		"mkdir -p /etc/portage/package.use",
+		phase=PHASE_KEY,
+		chroot=True,
+	)
+
+	if config.portage and config.portage.cpu_flags:
+		flags_str = " ".join(config.portage.cpu_flags)
+		runner.run_shell(
+			f"echo {shlex.quote(f'*/* {flags_str}')} > /etc/portage/package.use/00cpu-flags",
+			phase=PHASE_KEY,
+			chroot=True,
+		)
+	else:
+		# Auto-detect: emerge the tool, run it, write the result.
+		runner.run_shell(
+			"emerge --oneshot app-portage/cpuid2cpuflags",
+			phase=PHASE_KEY,
+			chroot=True,
+		)
+		runner.run_shell(
+			'echo "*/* $(cpuid2cpuflags)" > /etc/portage/package.use/00cpu-flags',
+			phase=PHASE_KEY,
+			chroot=True,
+		)
+
+
 def _write_package_config(config: GentlyConfig, runner: Runner) -> None:
 	"""Write /etc/portage/package.* configuration files.
 
@@ -345,6 +426,93 @@ def _write_package_config(config: GentlyConfig, runner: Runner) -> None:
 			phase=PHASE_KEY,
 			chroot=True,
 		)
+	
+	runner.run_shell(
+		f"cat /etc/portage/make.conf",
+		phase=PHASE_KEY,
+		chroot=True,
+	)
+
+	# Update @world to apply new configuration (e.g., accept_keywords)
+	runner.run_shell(
+		f"emerge --verbose --update --deep --changed-use @world",
+		phase=PHASE_KEY,
+		chroot=True,
+	)
+
+	# Clean up unnecessary packages after the world update
+	runner.run_shell(
+		f"emerge --depclean",
+		phase=PHASE_KEY,
+		chroot=True,
+	)
+
+
+def _binrepos_sync_uri(config: GentlyConfig, repo) -> str:
+	"""Construct sync-uri from stage3 mirror + arch + profile version + subarch.
+
+	The URL pattern used by official Gentoo mirrors is:
+	  {mirror}/releases/{arch}/binpackages/{profile_ver}/{subarch}/
+
+	The profile version (e.g. "23.0") is extracted from portage.profile.name
+	if present; otherwise "23.0" is used as a sensible default.
+	"""
+	mirror  = (config.stage3 and config.stage3.mirror) or "https://distfiles.gentoo.org"
+	arch    = (config.stage3 and config.stage3.arch)   or "amd64"
+	subarch = repo.subarch or "x86-64"
+
+	prof_ver = "23.0"
+	if config.portage and config.portage.profile and config.portage.profile.name:
+		for part in config.portage.profile.name.split("/"):
+			if part and part[0].isdigit() and "." in part:
+				prof_ver = part
+				break
+
+	return f"{mirror.rstrip('/')}/releases/{arch}/binpackages/{prof_ver}/{subarch}/"
+
+
+def _setup_binrepos(config: GentlyConfig, runner: Runner) -> None:
+	"""Write /etc/portage/binrepos.conf/<name>.conf for each entry in portage.binrepos.
+
+	This is the modern Portage 3.x way to configure binary package hosts,
+	mirroring how portage.repos maps to repos.conf entries.
+	"""
+	if not (config.portage and config.portage.binrepos):
+		return
+
+	binrepos_dir = "/etc/portage/binrepos.conf"
+	runner.run_shell(f"mkdir -p {binrepos_dir}", phase=PHASE_KEY, chroot=True)
+
+	needs_getuto = False
+	for repo in config.portage.binrepos:
+		if not repo.name:
+			continue
+
+		sync_uri         = repo.sync_uri or _binrepos_sync_uri(config, repo)
+		binrepos_file = f"{binrepos_dir}/{repo.name}.conf"
+		priority         = repo.priority if repo.priority is not None else 9999
+		verify_signature = repo.verify_signature if repo.verify_signature is not None else True
+
+		lines = [
+			f"[{repo.name}]",
+			f"priority = {priority}",
+			f"sync-uri = {sync_uri}",
+			f"verify-signature = {'true' if verify_signature else 'false'}",
+		]
+		for i, line in enumerate(lines):
+			op = ">" if i == 0 else ">>"
+			runner.run_shell(
+				f"echo {shlex.quote(line)} {op} {binrepos_file}",
+				phase=PHASE_KEY,
+				chroot=True,
+			)
+
+		if verify_signature:
+			needs_getuto = True
+
+	# Set up the Gentoo binary keyring once if any repo requires signature verification.
+	if needs_getuto:
+		runner.run_shell("getuto", phase=PHASE_KEY, chroot=True)
 
 
 def execute(config: GentlyConfig, runner: Runner) -> None:
@@ -355,8 +523,14 @@ def execute(config: GentlyConfig, runner: Runner) -> None:
 	# 2. Then configure distcc (which needs the tree to be available).
 	_setup_distcc(config, runner)
 
-	# 3. Finally, write the optimized make.conf.
+	# 3. Write the optimized make.conf.
 	_write_makeconf(config, runner)
 
-	# 4. Write package-specific configuration.
+	# 4. Write binrepos.conf if a binary host is configured (modern Portage 3.x API).
+	_setup_binrepos(config, runner)
+
+	# 5. Detect and write CPU flags into package.use/00cpu-flags.
+	_setup_cpu_flags(config, runner)
+
+	# 6. Write package-specific configuration (accept_keywords, accept_license, world update).
 	_write_package_config(config, runner)

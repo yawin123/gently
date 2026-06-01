@@ -36,6 +36,14 @@ class DistccForm(SectionForm):
                 FieldSpec(key="install_on_target", label="Install distcc on target",
                           i18n_key="form_distcc_install_on_target_label",
                           type="bool", default=d.install_on_target, required=False),
+                FieldSpec(key="_advanced_sep", label="form_distcc_sep_advanced",
+                          i18n_key="form_distcc_sep_advanced", type="separator", required=False),
+                FieldSpec(key="port", label="distccd port", i18n_key="form_distcc_port_label",
+                          type="int", default=d.port, required=False,
+                          help="form_distcc_port_help"),
+                FieldSpec(key="distcc_dir", label="distcc working dir", i18n_key="form_distcc_dir_label",
+                          type="text", default=d.distcc_dir, required=False,
+                          help="form_distcc_dir_help"),
             ],
         )
 
@@ -46,5 +54,7 @@ class DistccForm(SectionForm):
             makeopts_jobs=values.get("makeopts_jobs"),
             pump_mode=bool(values.get("pump_mode", False)),
             install_on_target=bool(values.get("install_on_target", False)),
+            port=values.get("port"),
+            distcc_dir=values.get("distcc_dir") or None,
         )
         return config

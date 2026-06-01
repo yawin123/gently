@@ -44,7 +44,7 @@ def collect(config: GentlyConfig, backend: UIBackend) -> tuple[GentlyConfig, str
 
     while True:
         sections = [
-            (f.section_key, f.section_name, f.is_complete(config))
+            (f.section_key, backend.translate(f"menu_section_{f.section_key}"), f.is_complete(config))
             for f in FORMS
         ]
         all_complete = all(complete for _, _, complete in sections)

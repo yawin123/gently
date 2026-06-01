@@ -4,6 +4,7 @@ form_system_title,System configuration
 form_system_subtitle,"Hostname, timezone and locale settings"
 form_system_hostname_label,Hostname
 form_system_hostname_help,"Machine hostname, e.g. myhostbox"
+form_system_sep_localisation,Localisation
 form_system_timezone_label,Timezone
 form_system_timezone_help,"Full list: ls /usr/share/zoneinfo"
 form_system_locale_label,Locale
@@ -20,6 +21,8 @@ form_stage3_subtitle,"Architecture, variant and source for the base system tarba
 form_stage3_arch_label,Architecture
 form_stage3_variant_label,Variant
 form_stage3_variant_help,"Init system bundled in the stage3 tarball"
+form_stage3_sep_source,Download source
+form_stage3_sep_verification,Verification
 form_stage3_mirror_label,Mirror URL
 form_stage3_mirror_help,"Distfiles mirror — Gently fetches the latest tarball automatically"
 form_stage3_local_path_label,Local tarball path
@@ -75,6 +78,7 @@ form_portage_makeopts_label,MAKEOPTS
 form_portage_makeopts_help,"Parallel jobs, e.g. -j4 or -j$(nproc)"
 form_portage_cpu_flags_label,CPU_FLAGS_X86
 form_portage_cpu_flags_help,"Run cpuid2cpuflags to get the correct value"
+form_portage_sep_use,USE flags & keywords
 form_portage_use_label,USE flags
 form_portage_use_help,"Global USE flags — confirm with empty list to set none"
 form_portage_accept_keywords_label,ACCEPT_KEYWORDS
@@ -86,23 +90,45 @@ form_portage_video_cards_help,"e.g. intel nouveau amdgpu"
 form_portage_input_devices_label,INPUT_DEVICES
 form_portage_mirrors_label,GENTOO_MIRRORS
 form_portage_mirrors_help,"Mirror URLs, e.g. https://mirror.leaseweb.com/gentoo/"
+form_portage_sep_sources,Sources
+form_portage_sep_binpkg,Binary packages
+form_portage_features_label,FEATURES
+form_portage_features_help,"Additional Portage feature flags, e.g. parallel-fetch candy ccache"
+form_portage_getbinpkg_label,Prefer binary packages
+form_portage_getbinpkg_help,"Adds getbinpkg to FEATURES — Portage will prefer prebuilt packages from binrepos"
+form_portage_binpkg_format_label,Binary package format
+form_portage_binpkg_format_help,"Format used when creating binary packages locally. gpkg is the modern default (Portage 3.x+)"
+form_portage_sep_profile,Profile
 form_portage_profile_label,Profile
 form_portage_profile_help,"Active Portage profile"
 # ── Forms: Kernel ─────────────────────────────────────────
 form_kernel_title,Kernel configuration
-form_kernel_method_label,Build method
-form_kernel_method_help,"genkernel: automated  |  dist-kernel: binary  |  menuconfig/custom: manual (config_path required)"
+form_kernel_subtitle,"installkernel: distribution kernel (v1). menuconfig/custom: manual (v2)."
+form_kernel_method_label,Installation method
+form_kernel_method_help,"installkernel: distribution kernel (binary or source)  |  menuconfig/custom: manual (v2)"
+form_kernel_binary_label,Use binary packages
+form_kernel_binary_help,"true: emerge gentoo-kernel-bin (no local compilation, recommended)  |  false: compile locally with gentoo-kernel"
 form_kernel_config_path_label,Config file path
 form_kernel_config_path_help,"Path to a .config file (only used with menuconfig or custom)"
 form_kernel_extra_modules_label,Extra modules
 form_kernel_extra_modules_help,"Additional kernel modules to force-include"
+form_kernel_firmware_sep,Additional packages
+form_kernel_linux_firmware_label,Linux firmware
+form_kernel_linux_firmware_help,"Emerge sys-kernel/linux-firmware (GPU, WiFi, audio firmware blobs)"
+form_kernel_intel_microcode_label,Intel microcode
+form_kernel_intel_microcode_help,"Emerge sys-firmware/intel-microcode (CPU microcode updates for Intel)"
+form_kernel_sof_firmware_label,SOF firmware
+form_kernel_sof_firmware_help,"Emerge sys-firmware/sof-firmware (Sound Open Firmware for Intel audio DSPs)"
 # ── Forms: Bootloader ─────────────────────────────────────
 form_bootloader_title,Bootloader
 form_bootloader_subtitle,"GRUB fields are only used when type=grub"
 form_bootloader_type_label,Bootloader type
 form_bootloader_type_help,"grub: install GRUB2  |  none: skip bootloader installation"
+form_bootloader_sep_grub,GRUB options
 form_bootloader_grub_install_disk_label,GRUB install disk
 form_bootloader_grub_install_disk_help,"Disk to install GRUB to, e.g. /dev/sda (blank = auto-detect)"
+form_bootloader_grub_platforms_label,GRUB platforms
+form_bootloader_grub_platforms_help,"Target platforms for grub-install, e.g. efi-64 or pc"
 form_bootloader_grub_timeout_label,"GRUB timeout (s)"
 form_bootloader_extra_params_label,Extra kernel params
 form_bootloader_extra_params_help,"Extra parameters appended to the kernel command line"
@@ -112,11 +138,13 @@ form_services_subtitle,"Select the daemon for each system role (none = do not in
 form_services_network_label,Network manager
 form_services_cron_label,Cron daemon
 form_services_logging_label,Logging daemon
+form_services_sep_optional,Optional services
 form_services_ssh_label,SSH server
 form_services_ntp_label,NTP daemon
 form_services_firewall_label,Firewall
 form_services_printing_label,Printing
 form_services_bluetooth_label,Bluetooth
+form_services_sep_custom,Custom
 form_services_extra_enable_label,Extra services to enable
 form_services_extra_enable_help,"Service names to emerge and activate (e.g. libvirtd, docker, acpid)"
 # ── Forms: Users ──────────────────────────────────────────
@@ -124,6 +152,8 @@ form_users_title,Users
 form_users_subtitle,"Root authentication and additional local users"
 form_users_credentials_file_label,Credentials file
 form_users_credentials_file_help,"Path to a file with pre-hashed credentials (shadow format)"
+form_users_credentials_file_shadow_label,Shadow credentials file
+form_users_credentials_file_shadow_help,"Path to a secondary credentials file containing only password_hash entries"
 form_users_root_password_label,Root password
 form_users_root_password_help,"Hashed automatically with SHA-512 before saving"
 form_users_root_password_confirm_label,Confirm root password
@@ -173,6 +203,11 @@ form_distcc_makeopts_jobs_help,"Override number of parallel jobs for distcc buil
 form_distcc_pump_mode_label,Pump mode
 form_distcc_pump_mode_help,"Use distcc-pump for header file distribution"
 form_distcc_install_on_target_label,Install distcc on target
+form_distcc_sep_advanced,Advanced
+form_distcc_port_label,distccd port
+form_distcc_port_help,"Port distccd listens on remote hosts (default: 3632)"
+form_distcc_dir_label,distcc working dir
+form_distcc_dir_help,"distcc working directory inside the chroot (default: /var/tmp/portage/.distcc)"
 # ── UI: Curses backend ────────────────────────────────────
 ui_list_editor_add_dialog_title,"Add {field_label}"
 ui_list_editor_title,"Edit list: {field_label}"
@@ -240,6 +275,17 @@ partition_error_missing_size,"Partition {n} (label={label!r}) has no size define
 partition_error_missing_device,"Partition device {device} does not exist after partitioning. Check whether partprobe/udevadm settled correctly."
 partition_error_fs_type_mismatch,"Partition {device}: expected filesystem type '{expected}', blkid reports '{actual}'."
 partition_error_not_mounted,"Mountpoint {target} ({device}) is not mounted after mount command."
+# ── Menu: Sections ──────────────────────────────────────
+menu_section_system,System configuration
+menu_section_stage3,Stage3 tarball
+menu_section_disks,Disk layout
+menu_section_portage,Portage configuration
+menu_section_kernel,Kernel
+menu_section_bootloader,Bootloader
+menu_section_services,Services
+menu_section_users,Users
+menu_section_packages,Extra packages
+menu_section_distcc,Distributed compilation (distcc)
 # ── App: Summary / Main ───────────────────────────────────
 summary_mark_complete,✓
 summary_section_complete_message,"{section_name} — configuration complete"

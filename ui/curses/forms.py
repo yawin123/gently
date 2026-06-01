@@ -12,10 +12,16 @@ from ui.curses.widgets import _fmt, inline_editor, choice_popup, list_editor, sh
 # Layout helpers
 # ---------------------------------------------------------------------------
 
-def _layout(form: FormSpec, width: int, values: dict[str, Any] | None = None) -> tuple[int, int]:
+def _layout(form: FormSpec, width: int, values: dict[str, Any] | None = None, backend: UIBackend | None = None) -> tuple[int, int]:
     """Return (label_w, value_w) for the given terminal width."""
-    fields = _visible_fields(form, values)
-    label_w = max(len(f.label) for f in fields) + 4 if fields else 20
+    fields = [f for f in _visible_fields(form, values) if f.type != "separator"]
+    if backend is not None:
+        label_w = max(
+            len(backend.translate(f.i18n_key or f.key) if f.i18n_key else f.label)
+            for f in fields
+        ) + 4 if fields else 20
+    else:
+        label_w = max(len(f.label) for f in fields) + 4 if fields else 20
     value_w = max(width - label_w - 2, 10)
     return label_w, value_w
 
@@ -27,7 +33,11 @@ def _visible_fields(form: FormSpec, values: dict[str, Any] | None) -> list[Field
     for f in form.fields:
         if f.visible_when is not None:
             cond_key, cond_val = f.visible_when
-            if values.get(cond_key) != cond_val:
+            actual = values.get(cond_key)
+            if isinstance(cond_val, (list, tuple)) and not isinstance(cond_val, bool):
+                if actual not in cond_val:
+                    continue
+            elif actual != cond_val:
                 continue
         result.append(f)
     return result
@@ -37,9 +47,9 @@ def _header_rows(form: FormSpec) -> int:
     return 1 + (1 if form.subtitle else 0) + 1  # title [+ subtitle] + blank
 
 
-def _value_pos(form: FormSpec, field_idx: int, scroll: int, width: int, values: dict[str, Any] | None = None) -> tuple[int, int, int]:
+def _value_pos(form: FormSpec, field_idx: int, scroll: int, width: int, values: dict[str, Any] | None = None, backend: UIBackend | None = None) -> tuple[int, int, int]:
     """Return (row, col, field_width) for the value input area of a field."""
-    label_w, value_w = _layout(form, width, values)
+    label_w, value_w = _layout(form, width, values, backend)
     row = _header_rows(form) + (field_idx - scroll)
     col = label_w + 1          # skip "["
     fw  = max(value_w - 2, 5)  # inside the brackets
@@ -67,10 +77,8 @@ def draw_form(
     height, width = stdscr.getmaxyx()
     stdscr.clear()
     visible = _visible_fields(form, values)
-    label_w, value_w = _layout(form, width, values)
+    label_w, value_w = _layout(form, width, values, backend)
     hr = _header_rows(form)
-
-    # Title — translate at render time so F2 language switch works.
     title_text = backend.translate(form.title) if form.title else ""
     stdscr.attron(curses.color_pair(_P_TITLE) | curses.A_BOLD)
     safe_write(stdscr, 0, 0, f" {title_text}".ljust(width))
@@ -94,11 +102,17 @@ def draw_form(
         label_part = f"{marker}{label_text}"
         val_display = val_str[:value_w - 2]
 
-        attr = curses.color_pair(_P_ACTIVE) if active else curses.color_pair(_P_NORMAL)
-        stdscr.attron(attr)
-        safe_write(stdscr, row, 0,
-                   f"{label_part:<{label_w}}[{val_display:<{value_w - 2}}]"[:width - 1])
-        stdscr.attroff(attr)
+        if field.type == "separator":
+            label_text = backend.translate(field.i18n_key or field.key) if field.i18n_key else field.label
+            stdscr.attron(curses.color_pair(_P_TITLE))
+            safe_write(stdscr, row, 0, f" {label_text} ".ljust(width))
+            stdscr.attroff(curses.color_pair(_P_TITLE))
+        else:
+            attr = curses.color_pair(_P_ACTIVE) if active else curses.color_pair(_P_NORMAL)
+            stdscr.attron(attr)
+            safe_write(stdscr, row, 0,
+                       f"{label_part:<{label_w}}[{val_display:<{value_w - 2}}]"[:width - 1])
+            stdscr.attroff(attr)
         row += 1
 
     # Status bar
@@ -148,9 +162,15 @@ def form_loop(
             return
 
         if key in (curses.KEY_DOWN, ord('\t')):
-            current = (current + 1) % n
+            next_c = (current + 1) % n
+            while visible[next_c].type == "separator" and next_c != current:
+                next_c = (next_c + 1) % n
+            current = next_c
         elif key in (curses.KEY_UP, curses.KEY_BTAB):
-            current = (current - 1) % n
+            next_c = (current - 1) % n
+            while visible[next_c].type == "separator" and next_c != current:
+                next_c = (next_c - 1) % n
+            current = next_c
         elif key == curses.KEY_F2:
             from ui.curses.screens import cycle_language
             cycle_language(stdscr, backend)
@@ -173,7 +193,7 @@ def form_loop(
         elif key in (curses.KEY_ENTER, 10, 13):
             field = visible[current]
             height, width = stdscr.getmaxyx()
-            row, col, fw = _value_pos(form, current, scroll, width, values)
+            row, col, fw = _value_pos(form, current, scroll, width, values, backend)
 
             if field.type in ("text", "int", "password"):
                 initial = str(values[field.key]) if values[field.key] is not None else ""

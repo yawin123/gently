@@ -4,6 +4,7 @@ form_system_title,Configuración del sistema
 form_system_subtitle,"Ajustes de nombre de host, zona horaria y regionales"
 form_system_hostname_label,Nombre de host
 form_system_hostname_help,"Nombre de host de la máquina, ej. mihostbox"
+form_system_sep_localisation,Localización
 form_system_timezone_label,Zona horaria
 form_system_timezone_help,"Lista completa: ls /usr/share/zoneinfo"
 form_system_locale_label,Configuración regional (Locale)
@@ -20,6 +21,8 @@ form_stage3_subtitle,"Arquitectura, variante y origen para el tarball del sistem
 form_stage3_arch_label,Arquitectura
 form_stage3_variant_label,Variante
 form_stage3_variant_help,"Sistema de inicio (init) incluido en el tarball stage3"
+form_stage3_sep_source,Fuente de descarga
+form_stage3_sep_verification,Verificación
 form_stage3_mirror_label,URL de réplica (Mirror)
 form_stage3_mirror_help,"Réplica de distfiles — Descarga automáticamente el último tarball"
 form_stage3_local_path_label,Ruta local del tarball
@@ -75,6 +78,7 @@ form_portage_makeopts_label,MAKEOPTS
 form_portage_makeopts_help,"Trabajos en paralelo, ej. -j4 o -j$(nproc)"
 form_portage_cpu_flags_label,CPU_FLAGS_X86
 form_portage_cpu_flags_help,"Ejecute cpuid2cpuflags para obtener el valor correcto"
+form_portage_sep_use,USE flags y palabras clave
 form_portage_use_label,Flags USE
 form_portage_use_help,"Flags USE globales — confirme con una lista vacía para no establecer ninguna"
 form_portage_accept_keywords_label,ACCEPT_KEYWORDS
@@ -86,23 +90,45 @@ form_portage_video_cards_help,"ej. intel nouveau amdgpu"
 form_portage_input_devices_label,INPUT_DEVICES
 form_portage_mirrors_label,GENTOO_MIRRORS
 form_portage_mirrors_help,"URLs de réplicas, ej. https://mirror.leaseweb.com/gentoo/"
+form_portage_sep_sources,Fuentes
+form_portage_sep_binpkg,Paquetes binarios
+form_portage_features_label,FEATURES
+form_portage_features_help,"Flags adicionales de Portage, ej. parallel-fetch candy ccache"
+form_portage_getbinpkg_label,Preferir paquetes binarios
+form_portage_getbinpkg_help,"Añade getbinpkg a FEATURES — Portage preferirá paquetes precompilados de los binrepos"
+form_portage_binpkg_format_label,Formato de paquetes binarios
+form_portage_binpkg_format_help,"Formato para crear paquetes binarios localmente. gpkg es el valor moderno por defecto (Portage 3.x+)"
+form_portage_sep_profile,Perfil
 form_portage_profile_label,Perfil
 form_portage_profile_help,"Perfil activo de Portage"
 # ── Forms: Kernel ─────────────────────────────────────────
 form_kernel_title,Configuración del Kernel
-form_kernel_method_label,Método de compilación
-form_kernel_method_help,"genkernel: automatizado  |  dist-kernel: binario  |  menuconfig/custom: manual (requiere config_path)"
+form_kernel_subtitle,"installkernel: kernel de distribución (v1). menuconfig/custom: manual (v2)."
+form_kernel_method_label,Método de instalación
+form_kernel_method_help,"installkernel: kernel de distribución (binario o compilado)  |  menuconfig/custom: manual (v2)"
+form_kernel_binary_label,Usar paquetes binarios
+form_kernel_binary_help,"true: emerge gentoo-kernel-bin (sin compilación local, recomendado)  |  false: compilar localmente con gentoo-kernel"
 form_kernel_config_path_label,Ruta del archivo de configuración
 form_kernel_config_path_help,"Ruta a un archivo .config (solo se usa con menuconfig o custom)"
 form_kernel_extra_modules_label,Módulos extra
 form_kernel_extra_modules_help,"Módulos de kernel adicionales para incluir obligatoriamente"
+form_kernel_firmware_sep,Paquetes adicionales
+form_kernel_linux_firmware_label,Linux firmware
+form_kernel_linux_firmware_help,"Emerge sys-kernel/linux-firmware (firmware para GPU, WiFi, audio)"
+form_kernel_intel_microcode_label,Intel microcode
+form_kernel_intel_microcode_help,"Emerge sys-firmware/intel-microcode (actualizaciones de microcódigo para Intel)"
+form_kernel_sof_firmware_label,SOF firmware
+form_kernel_sof_firmware_help,"Emerge sys-firmware/sof-firmware (Sound Open Firmware para DSP de audio Intel)"
 # ── Forms: Bootloader ─────────────────────────────────────
 form_bootloader_title,Gestor de arranque
 form_bootloader_subtitle,"Los campos de GRUB solo se usan cuando type=grub"
 form_bootloader_type_label,Tipo de gestor de arranque
 form_bootloader_type_help,"grub: instalar GRUB2  |  none: omitir la instalación del gestor de arranque"
+form_bootloader_sep_grub,Opciones de GRUB
 form_bootloader_grub_install_disk_label,Disco de instalación de GRUB
 form_bootloader_grub_install_disk_help,"Disco donde instalar GRUB, ej. /dev/sda (en blanco = autodetección)"
+form_bootloader_grub_platforms_label,Plataformas de GRUB
+form_bootloader_grub_platforms_help,"Plataformas destino para grub-install, ej. efi-64 o pc"
 form_bootloader_grub_timeout_label,"Tiempo de espera de GRUB (s)"
 form_bootloader_extra_params_label,Parámetros extra del kernel
 form_bootloader_extra_params_help,"Parámetros adicionales añadidos a la línea de comandos del kernel"
@@ -112,11 +138,13 @@ form_services_subtitle,"Seleccione el demonio para cada rol del sistema (none = 
 form_services_network_label,Gestor de red
 form_services_cron_label,Demonio Cron
 form_services_logging_label,Demonio de registro (Logging)
+form_services_sep_optional,Servicios opcionales
 form_services_ssh_label,Servidor SSH
 form_services_ntp_label,Demonio NTP
 form_services_firewall_label,Cortafuegos (Firewall)
 form_services_printing_label,Impresión
 form_services_bluetooth_label,Bluetooth
+form_services_sep_custom,Personalización
 form_services_extra_enable_label,Servicios extra para activar
 form_services_extra_enable_help,"Nombres de servicios a emerger (emerge) y activar (ej. libvirtd, docker, acpid)"
 # ── Forms: Users ──────────────────────────────────────────
@@ -124,6 +152,8 @@ form_users_title,Usuarios
 form_users_subtitle,"Autenticación de root y usuarios locales adicionales"
 form_users_credentials_file_label,Archivo de credenciales
 form_users_credentials_file_help,"Ruta a un archivo con credenciales cifradas previamente (formato shadow)"
+form_users_credentials_file_shadow_label,Archivo de credenciales shadow
+form_users_credentials_file_shadow_help,"Ruta a un archivo secundario de credenciales que solo contiene entradas password_hash"
 form_users_root_password_label,Contraseña de root
 form_users_root_password_help,"Se cifra automáticamente con SHA-512 antes de guardar"
 form_users_root_password_confirm_label,Confirmar contraseña de root
@@ -173,6 +203,11 @@ form_distcc_makeopts_jobs_help,"Anular el número de trabajos en paralelo para l
 form_distcc_pump_mode_label,Modo Pump
 form_distcc_pump_mode_help,"Usar distcc-pump para la distribución de archivos de cabecera (headers)"
 form_distcc_install_on_target_label,Instalar distcc en el destino
+form_distcc_sep_advanced,Avanzado
+form_distcc_port_label,Puerto de distccd
+form_distcc_port_help,"Puerto en el que escucha distccd en los equipos remotos (por defecto: 3632)"
+form_distcc_dir_label,Directorio de trabajo de distcc
+form_distcc_dir_help,"Directorio de trabajo de distcc dentro del chroot (por defecto: /var/tmp/portage/.distcc)"
 # ── UI: Curses backend ────────────────────────────────────
 ui_list_editor_add_dialog_title,"Agregar {field_label}"
 ui_list_editor_title,"Editar lista: {field_label}"
@@ -240,6 +275,17 @@ partition_error_missing_size,"Partición {n} (label={label!r}) sin tamaño defin
 partition_error_missing_device,"El dispositivo de partición {device} no existe tras el particionado. Compruebe si partprobe/udevadm se asentaron correctamente."
 partition_error_fs_type_mismatch,"Partición {device}: tipo de sistema de archivos esperado '{expected}', blkid reporta '{actual}'."
 partition_error_not_mounted,"El punto de montaje {target} ({device}) no está montado tras el comando mount."
+# ── Menu: Sections ──────────────────────────────────────
+menu_section_system,Configuración del sistema
+menu_section_stage3,Tarball Stage3
+menu_section_disks,Diseño del disco
+menu_section_portage,Configuración de Portage
+menu_section_kernel,Núcleo
+menu_section_bootloader,Gestor de arranque
+menu_section_services,Servicios
+menu_section_users,Usuarios
+menu_section_packages,Paquetes adicionales
+menu_section_distcc,Compilación distribuida (distcc)
 # ── App: Summary / Main ───────────────────────────────────
 summary_mark_complete,✓
 summary_section_complete_message,"{section_name} — configuración completada"

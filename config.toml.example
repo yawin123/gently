@@ -123,16 +123,16 @@ input_devices   = ["libinput"]
 mirrors         = ["https://distfiles.gentoo.org"]
 # Additional Portage features
 features        = ["parallel-fetch", "candy"]
-# Official binary package repository (Gentoo binary host)
+# If true, Portage prefers binary packages from the configured binrepos.
 # getbinpkg  = false
+# Format used when creating binary packages locally (gpkg is the modern default).
 # binpkg_format = "gpkg"
-# binhost    = "https://packages.gentoo.org/packages"
 
 [portage.profile]
-# Full profile. If omitted, inferred from the stage3 variant.
+# Full profile. If omitted, the stage3's built-in default is used.
 name = "default/linux/amd64/23.0/desktop"
 
-# Additional repositories (equivalent to repos.conf)
+# Additional source-code repositories (written to /etc/portage/repos.conf/)
 [[portage.repos]]
 name      = "gentoo"
 sync_type = "rsync"
@@ -142,6 +142,30 @@ sync_uri  = "rsync://rsync.gentoo.org/gentoo-portage"
 # name      = "guru"
 # sync_type = "git"
 # sync_uri  = "https://github.com/gentoo-mirror/guru.git"
+
+# Binary package repositories (written to /etc/portage/binrepos.conf/)
+# Each entry maps to one <name>.conf file — same pattern as portage.repos.
+#
+# sync_uri is optional. If omitted, the installer builds it automatically:
+#   {stage3.mirror}/releases/{stage3.arch}/binpackages/{profile_ver}/{subarch}/
+# where profile_ver is extracted from portage.profile.name (e.g. "23.0"),
+# and subarch defaults to "x86-64" for amd64.
+#
+# Minimal form — URL fully inferred from context:
+# [[portage.binrepos]]
+# name = "gentoo"
+#
+# Optimized variant (x86-64-v3 CPUs):
+# [[portage.binrepos]]
+# name    = "gentoo-v3"
+# subarch = "x86-64-v3"
+#
+# Explicit sync_uri (custom mirror or non-standard path):
+# [[portage.binrepos]]
+# name             = "gentoo"
+# sync_uri         = "https://distfiles.gentoo.org/releases/amd64/binpackages/23.0/x86-64/"
+# priority         = 9999
+# verify_signature = true
 
 
 # ------------------------------------------------------------
@@ -186,17 +210,16 @@ unmask = ["=media-video/ffmpeg-6.1"]
 # Kernel installation method.
 #
 # Implemented in v1:
-#   binary    — emerge sys-kernel/gentoo-kernel-bin (no local compilation)
-#   gentoo    — emerge sys-kernel/gentoo-kernel (compiles locally)
+#   installkernel — distribution kernel managed by Portage
+#                   binary = true  (default) → emerge sys-kernel/gentoo-kernel-bin (prebuilt)
+#                   binary = false           → emerge sys-kernel/gentoo-kernel (compiles locally)
 #
 # Planned for v2:
 #   menuconfig — manual interactive compilation with custom .config
 #   custom     — a pre-existing .config is provided, compiles without interaction
 #
-# The method key accepts future additional values without breaking
-# compatibility; the installer will reject with a clear error
-# any unrecognized value for the version in use.
-method = "binary"
+method = "installkernel"
+binary = true   # true = prebuilt binary (recommended); false = compile locally
 
 # Additional modules to include (independent of the method)
 # extra_modules = ["v4l2loopback", "virtualbox"]
