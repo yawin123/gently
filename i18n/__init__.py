@@ -47,14 +47,18 @@ def _csv_path(lang_tag: str) -> str:
 def _load_csv(path: str) -> dict[str, str]:
     result: dict[str, str] = {}
     with open(path, newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        # The second column is the target locale; use its header as the value key.
-        value_col = reader.fieldnames[1] if reader.fieldnames and len(reader.fieldnames) > 1 else "en_US"
+        reader = csv.reader(f)
+        header = next(reader, None)
+        if not header:
+            return result
+        # Second column (index 1) is the translated text regardless of header name.
+        text_idx = 1 if len(header) > 1 else None
+        if text_idx is None:
+            return result
         for row in reader:
-            key = row.get("id")
-            if not key or key.startswith("#"):
+            if not row or not row[0] or row[0].startswith("#"):
                 continue
-            result[key] = row.get(value_col, "")
+            result[row[0]] = row[text_idx] if len(row) > text_idx else ""
     return result
 
 
@@ -70,6 +74,8 @@ def _init() -> None:
 
 def _load_best(lang: str) -> str:
     global _translations
+    # Normalise to lowercase so es-ES matches es-es.csv.
+    lang = lang.lower()
     candidates = [lang]
     if "-" in lang:
         candidates.append(lang.split("-")[0])

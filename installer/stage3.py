@@ -80,6 +80,11 @@ def _resolve_tarball(config: GentlyConfig, runner: Runner) -> str:
 
 
 def execute(config: GentlyConfig, runner: Runner) -> None:
+	runner.run_shell(
+		f"chronyd -q",
+		phase=PHASE_KEY,
+	)
+
 	tarball_path = _resolve_tarball(config, runner)
 
 	ensure_stage3_space(config, runner, MOUNTPOINT)

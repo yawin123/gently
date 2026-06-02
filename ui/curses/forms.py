@@ -155,12 +155,10 @@ def form_loop(
         scroll = max(0, scroll)
 
         draw_form(stdscr, form, values, current, scroll, backend)
-        try:
-            key = stdscr.getch()
-        except KeyboardInterrupt:
-            backend.interrupt()
-            return
+        key = stdscr.getch()
 
+        if key == 3:  # Ctrl+C
+            raise KeyboardInterrupt
         if key in (curses.KEY_DOWN, ord('\t')):
             next_c = (current + 1) % n
             while visible[next_c].type == "separator" and next_c != current:

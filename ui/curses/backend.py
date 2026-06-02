@@ -56,7 +56,10 @@ class CursesBackend(UIBackend):
             stdscr.keypad(True)
             form_loop(stdscr, form, values, result, self)
 
-        curses.wrapper(_run)
+        try:
+            curses.wrapper(_run)
+        except KeyboardInterrupt:
+            result[0] = None
         return result[0]
 
     def show_subsection(self, title: str, items: list[tuple[str, dict]]) -> str:
@@ -68,7 +71,10 @@ class CursesBackend(UIBackend):
             stdscr.keypad(True)
             subsection_loop(stdscr, title, items, result, self)
 
-        curses.wrapper(_run)
+        try:
+            curses.wrapper(_run)
+        except KeyboardInterrupt:
+            result[0] = "done"
         return result[0]
 
     def show_section_menu(
@@ -84,7 +90,10 @@ class CursesBackend(UIBackend):
             stdscr.keypad(True)
             section_menu_loop(stdscr, sections, all_complete, result, self)
 
-        curses.wrapper(_run)
+        try:
+            curses.wrapper(_run)
+        except KeyboardInterrupt:
+            result[0] = "save_and_exit"
         return result[0]
 
     def show_summary(self, sections: list[tuple[str, dict]]) -> str:
@@ -96,7 +105,10 @@ class CursesBackend(UIBackend):
             stdscr.keypad(True)
             summary_loop(stdscr, sections, result, self)
 
-        curses.wrapper(_run)
+        try:
+            curses.wrapper(_run)
+        except KeyboardInterrupt:
+            result[0] = "save_and_exit"
         return result[0]
 
     def show_progress(self, phase: str, message: str) -> None:

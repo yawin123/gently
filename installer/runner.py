@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import shlex
 import subprocess
 import threading
@@ -9,6 +10,14 @@ import shutil
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Callable
+
+# Matches ANSI/VT100 escape sequences (colours, cursor movement, etc.).
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]|\x1b[()][AB012]")
+
+
+def _strip_ansi(text: str) -> str:
+    """Remove ANSI terminal escape sequences from *text*."""
+    return _ANSI_RE.sub("", text)
 
 
 @dataclass
@@ -103,11 +112,8 @@ class Runner(ABC):
 		and returned as a list of (description, exception) pairs. Exceptions are
 		also emitted through log_callback if one is set.
 		"""
-		# Clear chroot mode first so all cleanup commands run on the host, not inside
-		# the chroot (umounts, swapoff, etc. must run on the host filesystem).
-		self.chroot_path = None
-		# Clear the abort event so cleanup actions can always run — the user
-		# already requested the abort and cleanup *must* execute regardless.
+		# Clear the abort event unconditionally so cleanup actions can always run —
+		# the user already requested the abort and cleanup *must* execute regardless.
 		self.abort_event = None
 		errors: list[tuple[str, Exception]] = []
 		while self.cleanup_stack:
@@ -176,12 +182,12 @@ class Runner(ABC):
 		# set, so the user sees output in real time instead of in one batch at the end.
 		_stream = getattr(self, "_execute_streaming", None)
 		if self.log_callback and _stream is not None:
-			result = _stream(spec, lambda line: self.log_callback(phase, f"  {line}"))
+			result = _stream(spec, lambda line: self.log_callback(phase, f"  {_strip_ansi(line)}"))
 		else:
 			result = self._execute(spec)
 			if self.log_callback and result.stdout.strip():
 				for line in result.stdout.strip().splitlines():
-					self.log_callback(phase, f"  {line}")
+					self.log_callback(phase, f"  {_strip_ansi(line)}")
 		self.history.append(result)
 
 		if spec.check and result.returncode != 0:
@@ -308,7 +314,7 @@ class LocalRunner(Runner):
 			for raw_line in iter(proc.stdout.readline, ""):
 				line = raw_line.rstrip("\n")
 				stdout_lines.append(line)
-				line_cb(line)
+				line_cb(_strip_ansi(line))
 		proc.wait()
 		stderr_thread.join()
 		return CommandResult(
@@ -508,7 +514,7 @@ class SshRunner(Runner):
 			for raw_line in iter(proc.stdout.readline, ""):
 				line = raw_line.rstrip("\n")
 				stdout_lines.append(line)
-				line_cb(line)
+				line_cb(_strip_ansi(line))
 		proc.wait()
 		stderr_thread.join()
 		return CommandResult(

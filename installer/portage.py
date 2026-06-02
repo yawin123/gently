@@ -28,8 +28,19 @@ def _apply_profile(config: GentlyConfig, runner: Runner) -> None:
 	If portage.profile.name is absent the stage3's built-in default is left
 	untouched — it is already aligned with the chosen variant.
 	Must be called after emerge-webrsync so the profile tree is available.
+
+	In dry-run the validation is skipped so the command list remains
+	realistic (the tree hasn't been synced, so eselect would appear empty).
 	"""
 	if not (config.portage and config.portage.profile and config.portage.profile.name):
+		return
+
+	if runner.dry_run:
+		runner.run_shell(
+			f"eselect profile set {shlex.quote(config.portage.profile.name)}",
+			phase=PHASE_KEY,
+			chroot=True,
+		)
 		return
 
 	profile = config.portage.profile.name
@@ -110,11 +121,58 @@ def _get_nproc(runner: Runner) -> int:
 		return 1
 
 
+def _get_total_memory_mb(runner: Runner) -> int:
+	"""Get total system RAM + swap in MB using the runner.
+
+	Reading both because swap supplements RAM for gcc's virtual-memory
+	usage even though physical pages are what trigger the OOM killer.
+	"""
+	result = runner.run_shell(
+		r"awk '/MemTotal/ {ram=$2} /SwapTotal/ {swap=$2} END {printf \"%d\", (ram+swap)/1024}' /proc/meminfo",
+		check=True,
+		phase=PHASE_KEY,
+	)
+	try:
+		return int(result.stdout.strip())
+	except (ValueError, AttributeError):
+		return 1024  # safe fallback
+
+
+def _ram_aware_jobs(ram_mb: int, cpu_jobs: int) -> int:
+	"""Limit parallel jobs based on available RAM.
+
+	Each gcc process can consume significant memory, especially under
+	multilib (compiles twice).  Conservative heuristic:
+	  - < 2 GB   →  1 job  (OOM-safe for constrained VMs/containers)
+	  - 2–3.9 GB →  2 jobs
+	  - 4–7.9 GB → min(4, cpu_jobs)
+	  - 8 GB+    → cpu_jobs (no RAM bottleneck)
+	"""
+	if ram_mb < 2048:
+		return 1
+	if ram_mb < 4096:
+		return min(2, cpu_jobs)
+	if ram_mb < 8192:
+		return min(4, cpu_jobs)
+	return cpu_jobs
+
+
 def _calculate_makeopts(config: GentlyConfig, runner: Runner) -> str:
-	"""Calculate MAKEOPTS based on distcc configuration and available CPUs.
+	"""Calculate MAKEOPTS based on distcc, available CPUs, and RAM.
 
 	Respects config.portage.makeopts if explicitly set.
-	Otherwise: '-jN -lN' for distcc, '-jN' for local.
+
+	Semantics:
+	  -j N  — max parallel jobs to spawn (distcc or local).
+	  -l N  — load cap: don't spawn new jobs if load average ≥ N.
+
+	With distcc the remote workers handle compilation so -j can be
+	aggressive (nproc × 3), while -l keeps the local CPU from drowning
+	in preprocessor/linker tasks.
+
+	Without distcc, -j is RAM-constrained (prevents OOM on low-memory
+	systems) and -l{nproc} prevents oversubscription under link-heavy
+	or I/O-bound loads.
 	"""
 	# 1. User-specified makeopts has priority
 	if config.portage and config.portage.makeopts:
@@ -125,15 +183,37 @@ def _calculate_makeopts(config: GentlyConfig, runner: Runner) -> str:
 	
 	d = config.distcc
 	if d and d.enabled:
-		# Distcc: user can override jobs count
+		# Distcc: remote workers do the heavy lifting.
+		# -j is NOT RAM-limited — remote machines have their own RAM.
+		# -l{nproc} prevents local preprocessor/linker oversubscription.
 		if d.makeopts_jobs:
 			jobs = d.makeopts_jobs
 		else:
 			jobs = nproc * 3
 		return f"-j{jobs} -l{nproc}"
-	else:
-		jobs = nproc + 1
-		return f"-j{jobs}"
+
+	# 3. Local build: RAM-aware -j, plus -l{nproc} for load control.
+	ram_mb = _get_total_memory_mb(runner)
+	cpu_jobs = nproc + 1
+	jobs = max(1, _ram_aware_jobs(ram_mb, cpu_jobs))
+	return f"-j{jobs} -l{nproc}"
+
+
+def _is_inside_vm(runner: Runner) -> bool:
+	"""Detect if running inside a virtual machine.
+
+	Checks /sys/class/dmi/id/product_name and product_version for common VM
+	signatures. Returns True if a VM is detected.
+	"""
+	result = runner.run_shell(
+		"cat /sys/class/dmi/id/product_name /sys/class/dmi/id/product_version 2>/dev/null",
+		check=False,
+		phase=PHASE_KEY,
+		chroot=True,
+	)
+	product = (result.stdout + result.stderr).lower()
+	vm_signatures = ["virtualbox", "qemu", "kvm", "vmware", "microsoft", "parallels", "xen", "vm"]
+	return any(sig in product for sig in vm_signatures)
 
 
 def _discover_march(runner: Runner) -> str:
@@ -143,7 +223,14 @@ def _discover_march(runner: Runner) -> str:
 	what -march=native resolves to on the target machine.
 
 	Returns the architecture (e.g., 'skylake') or 'native' as fallback.
+	For VMs, uses a more conservative 'x86-64' baseline to avoid
+	compiling instructions that the VM may not fully support.
 	"""
+	# For VMs, use a conservative baseline to avoid SIGILL from unsupported
+	# instructions that the host CPU may have but the VM doesn't expose.
+	if _is_inside_vm(runner):
+		return "x86-64"
+
 	result = runner.run_shell(
 		"gcc -march=native -Q --help=target 2>/dev/null",
 		check=False,
@@ -170,12 +257,12 @@ def _calculate_cflags(config: GentlyConfig, distcc_enabled: bool, runner: Runner
 	Otherwise use sensible defaults with auto-discovered -march.
 	"""
 	user_cflags = config.portage and config.portage.cflags
-	
+
 	if user_cflags:
 		base = user_cflags
 	else:
 		base = "-O2 -pipe"
-	
+
 	# Auto-discover -march if not already set by the user
 	if "-march=" not in base:
 		if distcc_enabled:
@@ -183,7 +270,7 @@ def _calculate_cflags(config: GentlyConfig, distcc_enabled: bool, runner: Runner
 		else:
 			march = "native"
 		base += f" -march={march}"
-	
+
 	return base
 
 
@@ -276,6 +363,7 @@ def _write_makeconf(config: GentlyConfig, runner: Runner) -> None:
 			hosts_str = " ".join(d.hosts)
 			lines.append(f'DISTCC_HOSTS="{hosts_str}"')
 		extra_features.append("distcc")
+		extra_features.append("-network-sandbox")
 	if extra_features:
 		features_line = next((i for i, l in enumerate(lines) if l.startswith("FEATURES=")), None)
 		token_str = " ".join(extra_features)

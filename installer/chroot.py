@@ -74,10 +74,49 @@ def _mount_virt(runner: Runner) -> None:
 
 
 # ---------------------------------------------------------------------------
+# CPU compatibility check
+# ---------------------------------------------------------------------------
+
+def _check_stage3_cpu_compat(runner: Runner) -> None:
+	"""Verify that stage3 binaries can execute on the current CPU.
+
+	Runs /usr/bin/sed inside the chroot as a canary binary. If sed exits with
+	SIGILL (exit code 132) or its output contains 'Illegal instruction', the
+	stage3 was compiled for a CPU microarchitecture not supported by this machine.
+	This produces a clear diagnostic error rather than a cryptic build failure
+	deep inside the portage phase.
+	"""
+	result = runner.run_shell(
+		"/usr/bin/sed --version",
+		phase=PHASE_KEY,
+		chroot=True,
+		check=False,
+	)
+	# SIGILL = signal 4; shell encodes it as exit code 128 + 4 = 132.
+	sigill = result.returncode == 132 or "Illegal instruction" in (result.stdout + result.stderr)
+	if sigill:
+		raise ChrootError(
+			"Stage3 binaries are incompatible with the current CPU (Illegal instruction). "
+			"The stage3 tarball was compiled for a CPU microarchitecture not supported by "
+			"this machine. Solutions: (1) use a more generic stage3 (e.g. arch=amd64, "
+			"variant=openrc without custom -march= flags), or (2) set the VM CPU model "
+			"to 'host' to expose all host CPU features to the guest."
+		)
+
+
+# ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
 
 def execute(config: GentlyConfig, runner: Runner) -> None:
+	# Copy timezone configuration into the chroot so commands running inside
+	# see the same local time as the host.
+	runner.run_shell(
+		f"cp /etc/localtime {shlex.quote(MOUNTPOINT + '/etc/localtime')}",
+		phase=PHASE_KEY,
+		check=False,
+	)
+
 	_mount_virt(runner)
 
 	# Copy DNS configuration so the chroot can reach the network.
@@ -89,3 +128,13 @@ def execute(config: GentlyConfig, runner: Runner) -> None:
 	# Activate chroot mode.  From this point, runner.run_shell(chroot=True) wraps
 	# every command with: chroot /mnt/gentoo /bin/bash -lc "..."
 	runner.chroot_path = MOUNTPOINT
+	# Deactivating the chroot is itself a cleanup entry so that any action pushed
+	# onto the stack AFTER this point (e.g. distcc teardown) still runs inside the
+	# chroot, while the umounts pushed before this entry run on the host.
+	runner.push_cleanup(
+		"deactivate chroot",
+		lambda: setattr(runner, "chroot_path", None),
+	)
+
+	# Verify that stage3 binaries can actually execute on this CPU.
+	_check_stage3_cpu_compat(runner)

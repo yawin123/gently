@@ -12,7 +12,7 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _ROOT)
 sys.path.insert(0, os.path.join(_ROOT, "vendor"))
 
-from installer.portage import MOUNTPOINT, _apply_profile, _setup_cpu_flags, _setup_distcc, _setup_portage, _write_makeconf, execute
+from installer.portage import MOUNTPOINT, _apply_profile, _calculate_cflags, _discover_march, _is_inside_vm, _setup_cpu_flags, _setup_distcc, _setup_portage, _write_makeconf, execute
 from installer.runner import CommandResult, CommandSpec
 from model.config import DistccConfig, GentlyConfig, PortageBinrepoConfig, PortageConfig, PortageProfileConfig, Stage3Config, SystemConfig
 
@@ -581,6 +581,198 @@ def test_execute_skips_distcc_when_disabled():
 
 
 # ---------------------------------------------------------------------------
+# VM detection tests
+# ---------------------------------------------------------------------------
+
+class _VMDetectRunner(_FakeRunner):
+	"""Fake runner that simulates dmi product info for VM detection tests."""
+
+	def __init__(self, *, dmi_product: str = "", **kwargs):
+		super().__init__(**kwargs)
+		self._dmi_product = dmi_product
+
+	def run_shell(self, command: str, check: bool = True, cwd=None, env=None, phase=None, chroot: bool = False):
+		if chroot:
+			self.shell_commands.append(command)
+		else:
+			self.host_commands.append(command)
+
+		stdout = ""
+		if "dmi/id/product_name" in command:
+			stdout = self._dmi_product
+		else:
+			# Fallback to stdout_map for other commands
+			stdout = next((v for k, v in self.stdout_map.items() if k in command), "")
+
+		return CommandResult(
+			argv=["bash", "-lc", command], returncode=0, stdout=stdout, stderr="",
+			duration_sec=0.0, transport=self.transport, phase=phase,
+		)
+
+
+def test_is_inside_vm_detects_kvm():
+	runner = _VMDetectRunner(dmi_product="KVM")
+	assert _is_inside_vm(runner) is True
+	print("PASS  _is_inside_vm returns True for KVM")
+
+
+def test_is_inside_vm_detects_virtualbox():
+	runner = _VMDetectRunner(dmi_product="VirtualBox")
+	assert _is_inside_vm(runner) is True
+	print("PASS  _is_inside_vm returns True for VirtualBox")
+
+
+def test_is_inside_vm_detects_qemu():
+	runner = _VMDetectRunner(dmi_product="QEMU Virtual CPU")
+	assert _is_inside_vm(runner) is True
+	print("PASS  _is_inside_vm returns True for QEMU")
+
+
+def test_is_inside_vm_returns_false_on_bare_metal():
+	runner = _VMDetectRunner(dmi_product="To be filled by O.E.M.")
+	assert _is_inside_vm(runner) is False
+	print("PASS  _is_inside_vm returns False for bare metal")
+
+
+def test_is_inside_vm_checks_stderr_fallback():
+	"""Should also search stderr for VM signatures (e.g. when files don't exist)."""
+	runner = _VMDetectRunner(dmi_product="")  # Empty = no such file
+	assert _is_inside_vm(runner) is False  # No VM signature in empty output
+	print("PASS  _is_inside_vm handles missing dmi files gracefully")
+
+
+# ---------------------------------------------------------------------------
+# march discovery tests
+# ---------------------------------------------------------------------------
+
+class _MarchRunner(_VMDetectRunner):
+	"""Fake runner that simulates gcc -march=native output."""
+
+	def __init__(self, *, march_output: str = "", **kwargs):
+		super().__init__(**kwargs)
+		self._march_output = march_output
+
+	def run_shell(self, command: str, check: bool = True, cwd=None, env=None, phase=None, chroot: bool = False):
+		if chroot:
+			self.shell_commands.append(command)
+		else:
+			self.host_commands.append(command)
+
+		stdout = ""
+		if "dmi/id/product_name" in command:
+			stdout = self._dmi_product
+		elif "gcc -march=native" in command:
+			stdout = self._march_output
+		else:
+			stdout = next((v for k, v in self.stdout_map.items() if k in command), "")
+
+		return CommandResult(
+			argv=["bash", "-lc", command], returncode=0, stdout=stdout, stderr="",
+			duration_sec=0.0, transport=self.transport, phase=phase,
+		)
+
+
+def test_discover_march_returns_x86_64_on_vm():
+	"""In a VM, _discover_march returns 'x86-64' regardless of gcc output."""
+	runner = _MarchRunner(dmi_product="KVM", march_output="-march=	skylake")
+	assert _discover_march(runner) == "x86-64"
+	print("PASS  _discover_march returns x86-64 inside a VM")
+
+
+def test_discover_march_detects_haswell_on_bare_metal():
+	runner = _MarchRunner(dmi_product="To be filled by O.E.M.", march_output="-march=	haswell")
+	march = _discover_march(runner)
+	assert march == "haswell", f"Expected 'haswell', got {march!r}"
+	print("PASS  _discover_march detects haswell on bare metal")
+
+
+def test_discover_march_parses_gcc_tab_output():
+	"""gcc output uses tab between flag and value, e.g. '-march=    skylake'."""
+	runner = _MarchRunner(dmi_product="To be filled by O.E.M.", march_output="-march=	skylake")
+	march = _discover_march(runner)
+	assert march == "skylake", f"Expected 'skylake', got {march!r}"
+	print("PASS  _discover_march parses tab-separated gcc output")
+
+
+def test_discover_march_parses_gcc_spaces_output():
+	"""Some gcc versions emit spaces: '-march= skylake'."""
+	runner = _MarchRunner(dmi_product="To be filled by O.E.M.", march_output="-march= skylake")
+	march = _discover_march(runner)
+	assert march == "skylake", f"Expected 'skylake', got {march!r}"
+	print("PASS  _discover_march parses space-separated gcc output")
+
+
+def test_discover_march_falls_back_to_native():
+	"""When gcc output is unparseable, return 'native'."""
+	runner = _MarchRunner(dmi_product="To be filled by O.E.M.", march_output="")
+	march = _discover_march(runner)
+	assert march == "native", f"Expected 'native', got {march!r}"
+	print("PASS  _discover_march falls back to 'native' on unparseable output")
+
+
+# ---------------------------------------------------------------------------
+# CFLAGS calculation tests
+# ---------------------------------------------------------------------------
+
+def test_cflags_default_no_distcc_uses_native():
+	"""Without distcc and no user cflags, adds -march=native."""
+	cfg = GentlyConfig(
+		stage3=Stage3Config(arch="amd64"),
+		portage=PortageConfig(),
+	)
+	runner = _MarchRunner(dmi_product="To be filled by O.E.M.", march_output="-march=	tigerlake")
+	result = _calculate_cflags(cfg, distcc_enabled=False, runner=runner)
+	assert "-march=native" in result, f"Expected -march=native in: {result}"
+	print("PASS  default cflags without distcc uses -march=native")
+
+
+def test_cflags_default_with_distcc_disables_native():
+	"""With distcc and no user cflags, resolves specific march."""
+	cfg = GentlyConfig(
+		stage3=Stage3Config(arch="amd64"),
+		portage=PortageConfig(),
+	)
+	runner = _MarchRunner(dmi_product="To be filled by O.E.M.", march_output="-march=	tigerlake")
+	result = _calculate_cflags(cfg, distcc_enabled=True, runner=runner)
+	assert "-march=tigerlake" in result, f"Expected -march=tigerlake in: {result}"
+	assert "native" not in result, f"Should not contain 'native': {result}"
+	print("PASS  default cflags with distcc resolves specific march")
+
+
+def test_cflags_respects_user_march():
+	"""User-specified -march must be preserved exactly."""
+	cfg = GentlyConfig(
+		portage=PortageConfig(cflags="-O2 -pipe -march=x86-64"),
+	)
+	runner = _MarchRunner(dmi_product="To be filled by O.E.M.", march_output="-march=	haswell")
+	result = _calculate_cflags(cfg, distcc_enabled=True, runner=runner)
+	assert result == "-O2 -pipe -march=x86-64", f"Expected unchanged user flags: {result}"
+	print("PASS  user-specified -march=x86-64 is preserved")
+
+
+def test_cflags_user_cflags_without_march_adds_it():
+	"""User specified cflags but without -march → auto-detect and append."""
+	cfg = GentlyConfig(
+		portage=PortageConfig(cflags="-O2 -pipe"),
+	)
+	runner = _MarchRunner(dmi_product="To be filled by O.E.M.", march_output="-march=	haswell")
+	result = _calculate_cflags(cfg, distcc_enabled=True, runner=runner)
+	assert "-march=haswell" in result, f"Expected -march=haswell in: {result}"
+	assert result.startswith("-O2 -pipe"), f"Should preserve user base: {result}"
+	print("PASS  user cflags without -march gets auto-detected march appended")
+
+
+def test_cflags_default_vm_uses_x86_64():
+	"""In a VM, default cflags should use x86-64 baseline."""
+	cfg = GentlyConfig(portage=PortageConfig())
+	runner = _MarchRunner(dmi_product="KVM", march_output="-march=	tigerlake")
+	result = _calculate_cflags(cfg, distcc_enabled=True, runner=runner)
+	assert "-march=x86-64" in result, f"Expected -march=x86-64 in VM: {result}"
+	assert "native" not in result, f"Should not contain native: {result}"
+	print("PASS  default cflags in VM uses x86-64 baseline")
+
+
+# ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
 
@@ -627,4 +819,19 @@ if __name__ == "__main__":
 	test_distcc_installed_inside_chroot()
 	test_distcc_tcp_check_runs_as_warning()
 	test_execute_skips_distcc_when_disabled()
+	test_is_inside_vm_detects_kvm()
+	test_is_inside_vm_detects_virtualbox()
+	test_is_inside_vm_detects_qemu()
+	test_is_inside_vm_returns_false_on_bare_metal()
+	test_is_inside_vm_checks_stderr_fallback()
+	test_discover_march_returns_x86_64_on_vm()
+	test_discover_march_detects_haswell_on_bare_metal()
+	test_discover_march_parses_gcc_tab_output()
+	test_discover_march_parses_gcc_spaces_output()
+	test_discover_march_falls_back_to_native()
+	test_cflags_default_no_distcc_uses_native()
+	test_cflags_default_with_distcc_disables_native()
+	test_cflags_respects_user_march()
+	test_cflags_user_cflags_without_march_adds_it()
+	test_cflags_default_vm_uses_x86_64()
 	print("\nAll tests passed.")

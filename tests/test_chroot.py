@@ -14,7 +14,7 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _ROOT)
 sys.path.insert(0, os.path.join(_ROOT, "vendor"))
 
-from installer.chroot import MOUNTPOINT, execute
+from installer.chroot import MOUNTPOINT, ChrootError, _check_stage3_cpu_compat, execute
 from installer.runner import CommandResult, CommandSpec, LocalRunner
 from model.config import GentlyConfig
 
@@ -34,7 +34,7 @@ class _FakeRunner:
         self.log_callback = None
         self.confirm_callback = None
 
-    def run_shell(self, command: str, check: bool = True, cwd=None, env=None, phase=None) -> CommandResult:
+    def run_shell(self, command: str, check: bool = True, cwd=None, env=None, phase=None, chroot: bool = False) -> CommandResult:
         self.shell_commands.append(command)
         return CommandResult(
             argv=["bash", "-lc", command],
@@ -95,39 +95,47 @@ def test_execute_mounts_in_correct_order():
 def test_execute_registers_cleanup_for_each_mount():
     runner = _FakeRunner()
     execute(GentlyConfig(), runner)
-    assert len(runner.cleanup_stack) == 4, f"Expected 4 cleanup entries, got {len(runner.cleanup_stack)}"
+    # 4 virtual mount umounts + 1 chroot deactivation = 5 entries
+    assert len(runner.cleanup_stack) == 5, f"Expected 5 cleanup entries, got {len(runner.cleanup_stack)}"
     descs = [desc for desc, _ in runner.cleanup_stack]
     assert any("/proc" in d for d in descs)
     assert any("/sys"  in d for d in descs)
     assert any("/dev"  in d for d in descs)
     assert any("/run"  in d for d in descs)
-    print("PASS  execute registers 4 cleanup entries (one per virtual mount)")
+    assert any("deactivate chroot" in d for d in descs)
+    print("PASS  execute registers 5 cleanup entries (4 mounts + deactivate chroot)")
 
 
 def test_execute_cleanup_order_is_lifo():
-    """Cleanup must unmount in reverse mount order: run → dev → sys → proc."""
+    """Cleanup LIFO order: deactivate chroot first, then unmount run → dev → sys → proc."""
     runner = _FakeRunner()
     execute(GentlyConfig(), runner)
-    # pop() gives LIFO order
+    # pop() gives LIFO order: last-pushed first
     popped = []
     while runner.cleanup_stack:
         desc, _ = runner.cleanup_stack.pop()
         popped.append(desc)
-    assert "/run"  in popped[0], popped
-    assert "/dev"  in popped[1], popped
-    assert "/sys"  in popped[2], popped
-    assert "/proc" in popped[3], popped
-    print("PASS  cleanup order is LIFO: run → dev → sys → proc")
+    # "deactivate chroot" is pushed last so it runs first (clears chroot_path
+    # before the umounts, which must run on the host)
+    assert "deactivate chroot" in popped[0], popped
+    assert "/run"  in popped[1], popped
+    assert "/dev"  in popped[2], popped
+    assert "/sys"  in popped[3], popped
+    assert "/proc" in popped[4], popped
+    print("PASS  cleanup order is LIFO: deactivate chroot → run → dev → sys → proc")
 
 
 def test_execute_copies_resolv_conf():
     runner = _FakeRunner()
     execute(GentlyConfig(), runner)
     cp_cmds = [c for c in runner.shell_commands if c.startswith("cp ")]
-    assert len(cp_cmds) == 1, f"Expected 1 cp command, got: {cp_cmds}"
-    assert "resolv.conf" in cp_cmds[0]
-    assert MOUNTPOINT in cp_cmds[0]
-    print("PASS  execute copies resolv.conf into mountpoint")
+    assert len(cp_cmds) >= 2, f"Expected at least 2 cp commands (localtime + resolv.conf), got: {cp_cmds}"
+    resolv_cmds = [c for c in cp_cmds if "resolv.conf" in c]
+    localtime_cmds = [c for c in cp_cmds if "localtime" in c]
+    assert len(resolv_cmds) == 1, f"Expected 1 resolv.conf cp, got: {resolv_cmds}"
+    assert len(localtime_cmds) == 1, f"Expected 1 localtime cp, got: {localtime_cmds}"
+    assert MOUNTPOINT in resolv_cmds[0]
+    print("PASS  execute copies localtime and resolv.conf into mountpoint")
 
 
 def test_execute_sets_chroot_path():
@@ -145,7 +153,7 @@ def test_execute_dry_run_still_issues_commands():
     # Commands are issued (runner logs them as [dry-run] and skips actual execution).
     mount_cmds = [c for c in runner.shell_commands if c.startswith("mount ")]
     assert len(mount_cmds) == 6, f"Expected 6 mount commands in dry-run, got: {mount_cmds}"
-    assert len(runner.cleanup_stack) == 4
+    assert len(runner.cleanup_stack) == 5
     print("PASS  dry-run still issues commands and registers cleanups (runner handles the no-op)")
 
 
@@ -168,11 +176,73 @@ def test_run_shell_no_wrap_when_chroot_false():
 
 
 def test_run_cleanup_clears_chroot_path():
-    runner = LocalRunner(dry_run=True)
-    runner.chroot_path = "/mnt/gentoo"
-    runner.run_cleanup()
+    """chroot_path is cleared via the registered cleanup entry, not by run_cleanup itself."""
+    runner = _FakeRunner()
+    execute(GentlyConfig(), runner)
+    assert runner.chroot_path == MOUNTPOINT
+    # Manually invoke the "deactivate chroot" cleanup entry (it is the last pushed).
+    # In production run_cleanup() drains the stack in LIFO order, so it fires first.
+    deactivate_entry = next(
+        (action for desc, action in reversed(runner.cleanup_stack) if "deactivate chroot" in desc),
+        None,
+    )
+    assert deactivate_entry is not None, "Expected 'deactivate chroot' cleanup entry"
+    deactivate_entry()
     assert runner.chroot_path is None
-    print("PASS  run_cleanup clears chroot_path before running cleanup actions")
+    print("PASS  'deactivate chroot' cleanup entry clears runner.chroot_path")
+
+
+# ---------------------------------------------------------------------------
+# Tests for _check_stage3_cpu_compat
+# ---------------------------------------------------------------------------
+
+class _SedRunner(_FakeRunner):
+    """Fake runner that simulates SIGILL from /usr/bin/sed."""
+
+    def __init__(self, *, sed_returncode: int = 0, sed_stderr: str = ""):
+        super().__init__()
+        self._sed_returncode = sed_returncode
+        self._sed_stderr = sed_stderr
+
+    def run_shell(self, command: str, check: bool = True, cwd=None, env=None, phase=None, chroot: bool = False) -> CommandResult:
+        rc = self._sed_returncode if "/usr/bin/sed" in command else 0
+        stderr = self._sed_stderr if "/usr/bin/sed" in command else ""
+        return CommandResult(
+            argv=["bash", "-lc", command],
+            returncode=rc, stdout="", stderr=stderr,
+            duration_sec=0.0, transport=self.transport, phase=phase,
+        )
+
+
+def test_cpu_compat_passes_when_sed_succeeds():
+    runner = _SedRunner(sed_returncode=0)
+    runner.chroot_path = MOUNTPOINT
+    # Should not raise
+    _check_stage3_cpu_compat(runner)
+    print("PASS  _check_stage3_cpu_compat does not raise when sed exits 0")
+
+
+def test_cpu_compat_raises_on_sigill_exit_code():
+    runner = _SedRunner(sed_returncode=132)  # 128 + SIGILL(4)
+    runner.chroot_path = MOUNTPOINT
+    try:
+        _check_stage3_cpu_compat(runner)
+        assert False, "Expected ChrootError"
+    except ChrootError as exc:
+        assert "Illegal instruction" in str(exc)
+        assert "stage3" in str(exc).lower()
+    print("PASS  _check_stage3_cpu_compat raises ChrootError on exit code 132 (SIGILL)")
+
+
+def test_cpu_compat_raises_on_sigill_in_stderr():
+    runner = _SedRunner(sed_returncode=1, sed_stderr="Illegal instruction")
+    runner.chroot_path = MOUNTPOINT
+    try:
+        _check_stage3_cpu_compat(runner)
+        assert False, "Expected ChrootError"
+    except ChrootError as exc:
+        assert "Illegal instruction" in str(exc)
+    print("PASS  _check_stage3_cpu_compat raises ChrootError when stderr contains 'Illegal instruction'")
 
 
 if __name__ == "__main__":
@@ -186,5 +256,8 @@ if __name__ == "__main__":
     test_run_shell_wraps_command_when_chroot_path_set()
     test_run_shell_no_wrap_when_chroot_false()
     test_run_cleanup_clears_chroot_path()
+    test_cpu_compat_passes_when_sed_succeeds()
+    test_cpu_compat_raises_on_sigill_exit_code()
+    test_cpu_compat_raises_on_sigill_in_stderr()
     print()
     print("All chroot tests passed.")

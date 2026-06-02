@@ -15,6 +15,7 @@ lang     = "es_ES.UTF-8"
 arch    = "amd64"
 variant = "openrc"
 mirror  = "https://distfiles.gentoo.org"
+verify_signature = true
 
 [[disks]]
 id              = "primary"
@@ -52,7 +53,8 @@ accept_license  = "@FREE"
 name = "default/linux/amd64/23.0"
 
 [kernel]
-method = "binary"
+method = "installkernel"
+binary = true
 
 [bootloader]
 type = "grub"

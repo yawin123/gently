@@ -3,10 +3,10 @@ from __future__ import annotations
 import re
 import shlex
 
-from model.config import GentlyConfig
+from model.config import GentlyConfig, Stage3Config
 from util.parse import parse_int
 
-from installer.runner import Runner, RunnerError
+from installer.runner import CommandSpec, Runner, RunnerError
 
 
 PHASE_KEY = "preflight"
@@ -63,25 +63,43 @@ def _check_disks(config: GentlyConfig, runner: Runner) -> None:
 
 
 def _check_stage3_local_path(config: GentlyConfig, runner: Runner) -> None:
+	"""Verify stage3.local_path exists and is readable.
+
+	If the path is set but unreadable, clear it so _ensure_stage3_available
+	falls through to auto-download (or tarball_url) instead of crashing.
+	"""
 	stage3 = config.stage3
 	if stage3 is None or not stage3.local_path:
 		return
 
 	local_path = shlex.quote(stage3.local_path)
-	runner.run_shell(f"test -r {local_path}", phase=PHASE_KEY)
+	result = runner.run_shell(f"test -r {local_path}", check=False, phase=PHASE_KEY)
+	if result.returncode != 0:
+		# Path set but not available — clear it and let _ensure_stage3_available
+		# download/cache the tarball automatically.
+		stage3.local_path = None
 
 
 def _download_file(url: str, dest: str, runner: Runner) -> None:
-	runner.run_shell(
-		f"python3 -c \""
-		f"import urllib.request; "
-		f"urllib.request.urlretrieve({url!r}, {dest!r})"
-		f"\"",
-		phase=PHASE_KEY,
+	"""Download *url* to *dest* using Python's stdlib (portable, no wget needed).
+
+	Passes url and dest as separate argv entries after -c to avoid quoting
+	issues — the Python code receives them via sys.argv, not string interpolation.
+	"""
+	code = "import urllib.request, sys; urllib.request.urlretrieve(sys.argv[1], sys.argv[2])"
+	runner.run(
+		CommandSpec(
+			argv=["python3", "-c", code, url, dest],
+			check=True,
+			phase=PHASE_KEY,
+		)
 	)
 
 
 def _verify_signature(tarball: str, sig_path: str, runner: Runner) -> None:
+	if runner.dry_run:
+		return  # no real gpg in dry-run
+
 	# First attempt: let gpg auto-retrieve the signing key.
 	result = runner.run_shell(
 		f"gpg --auto-key-retrieve --verify {shlex.quote(sig_path)} {shlex.quote(tarball)}",
@@ -134,61 +152,100 @@ def _autobuilds_latest_url(mirror: str, arch: str, variant: str, runner: Runner)
 	raise PreflightError("Could not determine latest stage3 URL from autobuilds index")
 
 
+def _is_cached(path: str, runner: Runner) -> bool:
+	"""Return True if *path* exists and has non-zero size."""
+	result = runner.run_shell(
+		f'test -s {shlex.quote(path)} && echo yes || echo no',
+		check=False,
+		phase=PHASE_KEY,
+	)
+	return result.stdout.strip() == "yes"
+
+
+def _resolve_stage3_url(stage3: Stage3Config, runner: Runner) -> str:
+	"""Return the download URL for the stage3 tarball.
+
+	Priority: tarball_url > autobuilds discovery.
+	"""
+	if stage3.tarball_url:
+		return stage3.tarball_url
+	mirror = (stage3.mirror or "https://distfiles.gentoo.org").rstrip("/")
+	arch = stage3.arch or "amd64"
+	variant = stage3.variant or "openrc"
+	return _autobuilds_latest_url(mirror, arch, variant, runner)
+
+
+def _ensure_signature(stage3: Stage3Config, url: str | None, runner: Runner) -> None:
+	"""Verify the stage3 tarball GPG signature.
+
+	Downloads the .asc file if neither signature_path nor signature_url
+	is given — derives the URL from the tarball URL by appending '.asc'.
+	"""
+	sig_path = STAGE3_CACHE + ".asc"
+
+	if stage3.signature_path:
+		runner.run_shell(f"test -r {shlex.quote(stage3.signature_path)}", phase=PHASE_KEY)
+		_verify_signature(STAGE3_CACHE, stage3.signature_path, runner)
+		return
+
+	if not _is_cached(sig_path, runner):
+		if stage3.signature_url:
+			sig_url = stage3.signature_url
+		elif url:
+			sig_url = url + ".asc"
+		else:
+			raise PreflightError(
+				"Cannot verify signature: no tarball URL to derive .asc path from, "
+				"and neither signature_url nor signature_path is configured"
+			)
+		_download_file(sig_url, sig_path, runner)
+
+	_verify_signature(STAGE3_CACHE, sig_path, runner)
+
+
 def _ensure_stage3_available(config: GentlyConfig, runner: Runner) -> None:
+	"""Ensure the stage3 tarball is available locally.
+
+	Resolution order:
+	  1. If config.stage3.local_path is set → already verified by _check_stage3_local_path.
+	  2. If the tarball is already cached at STAGE3_CACHE → re-verify GPG if needed.
+	  3. Otherwise, download from tarball_url or auto-discover from Gentoo autobuilds.
+
+	In dry-run mode the download is skipped entirely — no network calls,
+	no file-system checks.
+	"""
 	stage3 = config.stage3
 	if stage3 is None:
 		return
 
-	# If a local path is specified, just verify it (already done in _check_stage3_local_path).
+	# Already available locally — skip.
 	if stage3.local_path:
 		return
 
-	# If a tarball is already cached, skip download.
-	stdout = runner.run_shell(
-		f'test -s {shlex.quote(STAGE3_CACHE)} && echo yes || echo no',
-		check=False,
-		phase=PHASE_KEY,
-	).stdout.strip()
-	if stdout == "yes":
+	if runner.dry_run:
+		# In dry-run, simulate a resolved path so the rest of the pipeline
+		# prints realistic-looking commands rather than crashing on None.
 		config.stage3.local_path = STAGE3_CACHE
 		return
 
-	# Resolve the source URL.
-	if stage3.tarball_url:
-		url = stage3.tarball_url
-	else:
-		mirror = (stage3.mirror or "https://distfiles.gentoo.org").rstrip("/")
-		arch = stage3.arch or "amd64"
-		variant = stage3.variant or "openrc"
-		url = _autobuilds_latest_url(mirror, arch, variant, runner)
+	url: str | None = None
+	cached = _is_cached(STAGE3_CACHE, runner)
 
-	_download_file(url, STAGE3_CACHE, runner)
+	if not cached:
+		url = _resolve_stage3_url(stage3, runner)
+		_download_file(url, STAGE3_CACHE, runner)
 
-	# Verify signature if requested.
+	# Re-verify even when cached (safety on idempotent runs).
 	if stage3.verify_signature:
-		if stage3.signature_url:
-			sig_url = stage3.signature_url
-		elif stage3.signature_path:
-			runner.run_shell(f"test -r {shlex.quote(stage3.signature_path)}", phase=PHASE_KEY)
-			_verify_signature(STAGE3_CACHE, stage3.signature_path, runner)
-			config.stage3.local_path = STAGE3_CACHE
-			return
-		else:
-			sig_url = url + ".asc"
-		sig_path = STAGE3_CACHE + ".asc"
-		_download_file(sig_url, sig_path, runner)
-		_verify_signature(STAGE3_CACHE, sig_path, runner)
+		_ensure_signature(stage3, url, runner)
 
 	config.stage3.local_path = STAGE3_CACHE
 
 
 
 def execute(config: GentlyConfig, runner: Runner) -> None:
-	try:
-		_check_required_commands(runner)
-		_check_connectivity(runner)
-		_check_disks(config, runner)
-		_check_stage3_local_path(config, runner)
-		_ensure_stage3_available(config, runner)
-	except RunnerError as exc:
-		raise PreflightError(str(exc)) from exc
+	_check_required_commands(runner)
+	_check_connectivity(runner)
+	_check_disks(config, runner)
+	_check_stage3_local_path(config, runner)
+	_ensure_stage3_available(config, runner)
