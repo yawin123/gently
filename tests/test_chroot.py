@@ -31,7 +31,7 @@ class _FakeRunner:
         self.shell_commands: list[str] = []
         self.cleanup_stack: list[tuple[str, object]] = []
         self.chroot_path: str | None = None
-        self.log_callback = None
+        self.log_dispatcher = None
         self.confirm_callback = None
 
     def run_shell(self, command: str, check: bool = True, cwd=None, env=None, phase=None, chroot: bool = False) -> CommandResult:

@@ -9,7 +9,8 @@ import os
 import shutil
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any, Callable, List
+import util.log as Log
 
 # Matches ANSI/VT100 escape sequences (colours, cursor movement, etc.).
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]|\x1b[()][AB012]")
@@ -18,6 +19,42 @@ _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]|\x1b[()][AB012]")
 def _strip_ansi(text: str) -> str:
     """Remove ANSI terminal escape sequences from *text*."""
     return _ANSI_RE.sub("", text)
+
+
+class LogCallbackDispatcher:
+    """Dispatcher for log callbacks that allows multiple subscribers.
+    
+    This class enables multiple callbacks to be registered and called
+    simultaneously when log events occur. Each callback receives the same
+    (phase_key, line) arguments.
+    """
+    
+    def __init__(self) -> None:
+        self._callbacks: List[Callable[[str, str], None]] = []
+        self._lock = threading.Lock()
+    
+    def register(self, callback: Callable[[str, str], None]) -> None:
+        """Register a callback to be called on log events."""
+        with self._lock:
+            if callback not in self._callbacks:
+                self._callbacks.append(callback)
+    
+    def unregister(self, callback: Callable[[str, str], None]) -> None:
+        """Unregister a previously registered callback."""
+        with self._lock:
+            if callback in self._callbacks:
+                self._callbacks.remove(callback)
+    
+    def __call__(self, phase_key: str, line: str) -> None:
+        """Call all registered callbacks with the given arguments."""
+        with self._lock:
+            callbacks = self._callbacks.copy()
+        for callback in callbacks:
+            try:
+                callback(phase_key, line)
+            except Exception:
+                # Log errors but don't let one callback break others
+                pass
 
 
 @dataclass
@@ -73,8 +110,8 @@ class Runner(ABC):
 	def __init__(self, dry_run: bool = False):
 		self.dry_run = dry_run
 		self.history: list[CommandResult] = []
-		# Optional callback(phase_key, line) called immediately after each command.
-		self.log_callback: Callable[[str, str], None] | None = None
+		# Dispatcher for log callbacks that allows multiple subscribers.
+		self.log_dispatcher: LogCallbackDispatcher = LogCallbackDispatcher()
 		# Optional callback(message, yes_key, no_key) -> bool for interactive confirmations.
 		# If None, confirm() always returns True (unattended / test mode).
 		self.confirm_callback: Callable[[str, str, str], bool] | None = None
@@ -110,7 +147,7 @@ class Runner(ABC):
 
 		Each action is called even if a previous one raised; errors are collected
 		and returned as a list of (description, exception) pairs. Exceptions are
-		also emitted through log_callback if one is set.
+		also emitted through log_dispatcher if one is set.
 		"""
 		# Clear the abort event unconditionally so cleanup actions can always run —
 		# the user already requested the abort and cleanup *must* execute regardless.
@@ -121,8 +158,8 @@ class Runner(ABC):
 			try:
 				entry.action()
 			except Exception as exc:
-				if self.log_callback:
-					self.log_callback("cleanup", f"[cleanup] WARNING: {entry.description} failed: {exc}")
+				if self.log_dispatcher:
+					self.log_dispatcher("cleanup", f"[cleanup] WARNING: {entry.description} failed: {exc}")
 				errors.append((entry.description, exc))
 		return errors
 
@@ -161,8 +198,8 @@ class Runner(ABC):
 			cmd_line = f"[dry-run] {cmd_line}"
 
 		# Emit the command line BEFORE executing so the user sees it immediately.
-		if self.log_callback:
-			self.log_callback(phase, cmd_line)
+		if self.log_dispatcher:
+			self.log_dispatcher(phase, cmd_line)
 
 		if self.dry_run:
 			result = CommandResult(
@@ -181,13 +218,13 @@ class Runner(ABC):
 		# Use streaming execution (line-by-line) when available and a log callback is
 		# set, so the user sees output in real time instead of in one batch at the end.
 		_stream = getattr(self, "_execute_streaming", None)
-		if self.log_callback and _stream is not None:
-			result = _stream(spec, lambda line: self.log_callback(phase, f"  {_strip_ansi(line)}"))
+		if self.log_dispatcher and _stream is not None:
+			result = _stream(spec, lambda line: self.log_dispatcher(phase, f"  {_strip_ansi(line)}"))
 		else:
 			result = self._execute(spec)
-			if self.log_callback and result.stdout.strip():
+			if self.log_dispatcher and result.stdout.strip():
 				for line in result.stdout.strip().splitlines():
-					self.log_callback(phase, f"  {_strip_ansi(line)}")
+					self.log_dispatcher(phase, f"  {_strip_ansi(line)}")
 		self.history.append(result)
 
 		if spec.check and result.returncode != 0:
@@ -627,10 +664,16 @@ def run_installation(
 	selected = phases if phases is not None else default_install_phases()
 	report = InstallationReport()
 
+	if isinstance(runner.log_dispatcher, LogCallbackDispatcher):
+		runner.log_dispatcher.register(Log._write)
+
 	try:
 		if backend is not None:
 			backend.install_progress_begin([p.key for p in selected])
-			runner.log_callback = backend.install_progress_update
+			# Register the backend callback with the log dispatcher instead of replacing it.
+			# This allows multiple callbacks (e.g., file logging + UI updates) to receive log events.
+			if isinstance(runner.log_dispatcher, LogCallbackDispatcher):
+				runner.log_dispatcher.register(backend.install_progress_update)
 			# In standalone mode (when prepare_install was not called),
 			# wire the abort event so the UI's q/Esc reaches the runner.
 			if runner.abort_event is None:

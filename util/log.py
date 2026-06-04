@@ -25,12 +25,12 @@ def _write(level: str, message: str) -> None:
     _open_log()
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     plain = f"[{ts}] [{level:<5}] {message}"
-    if _USE_COLOR:
+    '''if _USE_COLOR:
         c = _COLOR.get(level, "")
         r = _COLOR["RESET"]
         print(f"{c}[{ts}] [{level:<5}]{r} {message}", flush=True)
     else:
-        print(plain, flush=True)
+        print(plain, flush=True)'''
     _handle.write(plain + "\n")
     _handle.flush()
 

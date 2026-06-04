@@ -33,7 +33,7 @@ class _FakeRunner:
 		self.cleanup_stack: list[tuple[str, object]] = []
 		# Simulate state after chroot_prep
 		self.chroot_path: str | None = MOUNTPOINT
-		self.log_callback = None
+		self.log_dispatcher = None
 		self.confirm_callback = None
 
 	def _result(self, argv: list[str], phase) -> CommandResult:
