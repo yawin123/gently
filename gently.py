@@ -1,3 +1,4 @@
+import argparse
 import sys
 import os
 from datetime import datetime
@@ -9,7 +10,7 @@ from model.config import load_config, save_config, ConfigError, GentlyConfig
 from model.validators import validate_coherence
 from ui import create_backend
 from ui.abstract import UIBackend
-from installer.runner import LocalRunner, run_installation_interactive
+from installer.runner import build_runner, run_installation_interactive
 from ui.forms.system import SystemForm
 from ui.forms.stage3 import Stage3Form
 from ui.forms.disks import DisksForm
@@ -94,10 +95,29 @@ def _build_summary_sections(config: GentlyConfig) -> list[tuple[str, dict[str, A
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Gently — installer")
+    parser.add_argument(
+        "--config", default="config.toml",
+        help="Path to configuration file",
+    )
+    parser.add_argument(
+        "--target", default="local",
+        help="Target: 'local' or 'ssh:user@host'",
+    )
+    parser.add_argument(
+        "--password", default=None,
+        help="SSH password for remote target",
+    )
+    parser.add_argument(
+        "--no-dry-run", action="store_true", default=False,
+        help="Execute real commands instead of dry-run",
+    )
+    args = parser.parse_args()
+
     backend = create_backend()
-    config = load_config("config.toml")
+    config = load_config(args.config)
     config, action = collect(config, backend)
-    save_config(config, "config.toml")
+    save_config(config, args.config)
 
     # Always persist a timestamped copy.
     saves_dir = os.path.join(os.path.dirname(__file__), "saves")
@@ -113,7 +133,13 @@ def main() -> None:
         backend.show_error("ui_error_title", "\n".join(errors), "ui_press_any_key")
         sys.exit(1)
 
-    runner = LocalRunner(dry_run=False)
+    dry_run = not args.no_dry_run
+    runner = build_runner(
+        args.target,
+        dry_run=dry_run,
+        ssh_password=args.password,
+    )
+
     try:
         run_installation_interactive(config, runner, backend)
     except KeyboardInterrupt:

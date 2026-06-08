@@ -83,10 +83,13 @@ def _check_stage3_local_path(config: GentlyConfig, runner: Runner) -> None:
 def _download_file(url: str, dest: str, runner: Runner) -> None:
 	"""Download *url* to *dest* using Python's stdlib (portable, no wget needed).
 
-	Passes url and dest as separate argv entries after -c to avoid quoting
-	issues — the Python code receives them via sys.argv, not string interpolation.
+	Passes url and dest as separate argv entries after -c to avoid shell
+	quoting issues across local and SSH transports.
 	"""
-	code = "import urllib.request, sys; urllib.request.urlretrieve(sys.argv[1], sys.argv[2])"
+	code = (
+		"import urllib.request, sys; "
+		"urllib.request.urlretrieve(sys.argv[1], sys.argv[2])"
+	)
 	runner.run(
 		CommandSpec(
 			argv=["python3", "-c", code, url, dest],
@@ -244,8 +247,11 @@ def _ensure_stage3_available(config: GentlyConfig, runner: Runner) -> None:
 
 
 def execute(config: GentlyConfig, runner: Runner) -> None:
-	_check_required_commands(runner)
-	_check_connectivity(runner)
-	_check_disks(config, runner)
-	_check_stage3_local_path(config, runner)
-	_ensure_stage3_available(config, runner)
+	try:
+		_check_required_commands(runner)
+		_check_connectivity(runner)
+		_check_disks(config, runner)
+		_check_stage3_local_path(config, runner)
+		_ensure_stage3_available(config, runner)
+	except RunnerError as exc:
+		raise PreflightError(str(exc)) from exc

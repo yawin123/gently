@@ -54,7 +54,7 @@ name = "default/linux/amd64/23.0"
 
 [kernel]
 method = "installkernel"
-binary = true
+binary = false
 
 [bootloader]
 type = "grub"
