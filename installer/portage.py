@@ -128,7 +128,7 @@ def _get_total_memory_mb(runner: Runner) -> int:
 	usage even though physical pages are what trigger the OOM killer.
 	"""
 	result = runner.run_shell(
-		r"awk '/MemTotal/ {ram=$2} /SwapTotal/ {swap=$2} END {printf \"%d\", (ram+swap)/1024}' /proc/meminfo",
+		"awk '/MemTotal/ {ram=$2} /SwapTotal/ {swap=$2} END {printf \"%d\", (ram+swap)/1024}' /proc/meminfo",
 		check=True,
 		phase=PHASE_KEY,
 	)
