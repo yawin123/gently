@@ -29,7 +29,7 @@ class _FakeRunner:
         self.dry_run = dry_run
         self.shell_commands: list[tuple[str, bool]] = []  # (command, chroot)
         self.chroot_path: str | None = "/mnt/gentoo"
-        self.log_callback = None
+        self.log_dispatcher = None
         self.confirm_callback = None
 
     def run_shell(

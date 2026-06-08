@@ -38,7 +38,7 @@ class _FakeRunner:
         self.readable_paths = readable_paths if readable_paths is not None else set()
         self.file_sizes = dict(file_sizes or {})
         self.shell_commands: list[str] = []
-        self.log_callback = None
+        self.log_dispatcher = None
         self.confirm_callback = None
 
     def run_shell(self, command: str, check: bool = True, cwd: str | None = None, env: dict[str, str] | None = None, phase: str | None = None) -> CommandResult:

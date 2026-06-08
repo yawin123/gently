@@ -1,0 +1,407 @@
+[2026-06-03 08:48:46] [portage] $ chroot /mnt/gentoo /bin/bash -lc ln -sf ../usr/share/zoneinfo/Europe/Madrid /etc/localtime
+[2026-06-03 08:48:46] [portage] $ chroot /mnt/gentoo /bin/bash -lc echo 'es_ES.UTF-8 UTF-8' > /etc/locale.gen
+[2026-06-03 08:48:46] [portage] $ chroot /mnt/gentoo /bin/bash -lc locale-gen
+[2026-06-03 08:48:46] [portage]   Found 1 locale declaration in '/etc/locale.gen'.
+[2026-06-03 08:48:46] [portage]   Compiling 2 locales with 1 worker ...
+[2026-06-03 08:48:46] [portage]   [1/2] Compiling locale: C.UTF-8
+[2026-06-03 08:48:47] [portage]   [2/2] Compiling locale: es_ES.UTF-8
+[2026-06-03 08:48:48] [portage]   The location of the archive shall be '/usr/lib/locale/locale-archive'.
+[2026-06-03 08:48:48] [portage]   Adding 2 locales to the locale archive ...
+[2026-06-03 08:48:48] [portage]   Successfully installed an archive containing 2 locales, of 2.93 MiB in size.
+[2026-06-03 08:48:48] [portage] $ chroot /mnt/gentoo /bin/bash -lc mkdir -p /var/db/repos/gentoo
+[2026-06-03 08:48:48] [portage] $ chroot /mnt/gentoo /bin/bash -lc chown -R portage:portage /var/db/repos/gentoo
+[2026-06-03 08:48:48] [portage] $ chroot /mnt/gentoo /bin/bash -lc mkdir -p /etc/portage/package.accept_keywords
+[2026-06-03 08:48:48] [portage] $ chroot /mnt/gentoo /bin/bash -lc mkdir -p /etc/portage/package.license
+[2026-06-03 08:48:48] [portage] $ chroot /mnt/gentoo /bin/bash -lc emerge-webrsync
+[2026-06-03 08:48:48] [portage]    * PGP verification method: gemato
+[2026-06-03 08:48:48] [portage]    * Fetching most recent snapshot ...
+[2026-06-03 08:48:48] [portage]    * Trying to retrieve 20260602 snapshot from http://distfiles.gentoo.org ...
+[2026-06-03 08:48:48] [portage]    * Fetching file gentoo-20260602.tar.xz.md5sum ...
+[2026-06-03 08:48:48] [portage]    * Fetching file gentoo-20260602.tar.xz.gpgsig ...
+[2026-06-03 08:48:48] [portage]    * Fetching file gentoo-20260602.tar.xz ...
+[2026-06-03 08:49:00] [portage]    * Checking digest ...
+[2026-06-03 08:49:00] [portage]    * Checking signature with gemato ...
+[2026-06-03 08:49:02] [portage]    * Getting snapshot timestamp ...
+[2026-06-03 08:49:04] [portage]    * Extracting 'gentoo-20260602.tar.xz' ...
+[2026-06-03 08:49:09] [portage]    * Using rsync to refresh '/var/db/repos/gentoo' ...
+[2026-06-03 08:49:34] [portage]   
+[2026-06-03 08:49:34] [portage]   Number of files: 157.092 (reg: 129.416, dir: 27.676)
+[2026-06-03 08:49:34] [portage]   Number of created files: 157.091 (reg: 129.416, dir: 27.675)
+[2026-06-03 08:49:34] [portage]   Number of deleted files: 0
+[2026-06-03 08:49:34] [portage]   Number of regular files transferred: 129.416
+[2026-06-03 08:49:34] [portage]   Total file size: 233,56M bytes
+[2026-06-03 08:49:34] [portage]   Total transferred file size: 233,56M bytes
+[2026-06-03 08:49:34] [portage]   Literal data: 233,56M bytes
+[2026-06-03 08:49:34] [portage]   Matched data: 0 bytes
+[2026-06-03 08:49:34] [portage]   File list size: 4,26M
+[2026-06-03 08:49:34] [portage]   File list generation time: 0,001 seconds
+[2026-06-03 08:49:34] [portage]   File list transfer time: 0,000 seconds
+[2026-06-03 08:49:34] [portage]   Total bytes sent: 121,05M
+[2026-06-03 08:49:34] [portage]   Total bytes received: 2,58M
+[2026-06-03 08:49:34] [portage]   
+[2026-06-03 08:49:34] [portage]   sent 121,05M bytes  received 2,58M bytes  5,26M bytes/sec
+[2026-06-03 08:49:34] [portage]   total size is 233,56M  speedup is 1,89
+[2026-06-03 08:49:35] [portage]   
+[2026-06-03 08:49:35] [portage]   Performing Global Updates
+[2026-06-03 08:49:35] [portage]   (Could take a couple of minutes if you have a lot of binary packages.)
+[2026-06-03 08:49:35] [portage]   
+[2026-06-03 08:49:35] [portage]   
+[2026-06-03 08:49:36] [portage]   
+[2026-06-03 08:49:36] [portage]    * IMPORTANT: 20 news items need reading for repository 'gentoo'.
+[2026-06-03 08:49:36] [portage]    * Use eselect news read to view new items.
+[2026-06-03 08:49:36] [portage]   
+[2026-06-03 08:49:37] [portage] $ chroot /mnt/gentoo /bin/bash -lc eselect profile list
+[2026-06-03 08:49:38] [portage]   Available profile symlink targets:
+[2026-06-03 08:49:38] [portage]     [1]   default/linux/amd64/23.0 (stable) *
+[2026-06-03 08:49:38] [portage]     [2]   default/linux/amd64/23.0/systemd (stable)
+[2026-06-03 08:49:38] [portage]     [3]   default/linux/amd64/23.0/desktop (stable)
+[2026-06-03 08:49:38] [portage]     [4]   default/linux/amd64/23.0/desktop/systemd (stable)
+[2026-06-03 08:49:38] [portage]     [5]   default/linux/amd64/23.0/desktop/gnome (stable)
+[2026-06-03 08:49:38] [portage]     [6]   default/linux/amd64/23.0/desktop/gnome/systemd (stable)
+[2026-06-03 08:49:38] [portage]     [7]   default/linux/amd64/23.0/desktop/plasma (stable)
+[2026-06-03 08:49:38] [portage]     [8]   default/linux/amd64/23.0/desktop/plasma/systemd (stable)
+[2026-06-03 08:49:38] [portage]     [9]   default/linux/amd64/23.0/no-multilib (stable)
+[2026-06-03 08:49:38] [portage]     [10]  default/linux/amd64/23.0/no-multilib/systemd (stable)
+[2026-06-03 08:49:38] [portage]     [11]  default/linux/amd64/23.0/no-multilib/hardened (stable)
+[2026-06-03 08:49:38] [portage]     [12]  default/linux/amd64/23.0/no-multilib/hardened/systemd (stable)
+[2026-06-03 08:49:38] [portage]     [13]  default/linux/amd64/23.0/no-multilib/hardened/selinux (stable)
+[2026-06-03 08:49:38] [portage]     [14]  default/linux/amd64/23.0/no-multilib/hardened/selinux/systemd (stable)
+[2026-06-03 08:49:38] [portage]     [15]  default/linux/amd64/23.0/no-multilib/prefix (exp)
+[2026-06-03 08:49:38] [portage]     [16]  default/linux/amd64/23.0/no-multilib/prefix/kernel-2.6.32+ (exp)
+[2026-06-03 08:49:38] [portage]     [17]  default/linux/amd64/23.0/no-multilib/prefix/kernel-2.6.16+ (exp)
+[2026-06-03 08:49:38] [portage]     [18]  default/linux/amd64/23.0/no-multilib/prefix/kernel-3.2+ (exp)
+[2026-06-03 08:49:38] [portage]     [19]  default/linux/amd64/23.0/llvm (exp)
+[2026-06-03 08:49:38] [portage]     [20]  default/linux/amd64/23.0/llvm/systemd (exp)
+[2026-06-03 08:49:38] [portage]     [21]  default/linux/amd64/23.0/hardened (stable)
+[2026-06-03 08:49:38] [portage]     [22]  default/linux/amd64/23.0/hardened/systemd (stable)
+[2026-06-03 08:49:38] [portage]     [23]  default/linux/amd64/23.0/hardened/selinux (stable)
+[2026-06-03 08:49:38] [portage]     [24]  default/linux/amd64/23.0/hardened/selinux/systemd (stable)
+[2026-06-03 08:49:38] [portage]     [25]  default/linux/amd64/23.0/split-usr (stable)
+[2026-06-03 08:49:38] [portage]     [26]  default/linux/amd64/23.0/split-usr/desktop (stable)
+[2026-06-03 08:49:38] [portage]     [27]  default/linux/amd64/23.0/split-usr/desktop/gnome (stable)
+[2026-06-03 08:49:38] [portage]     [28]  default/linux/amd64/23.0/split-usr/desktop/plasma (stable)
+[2026-06-03 08:49:38] [portage]     [29]  default/linux/amd64/23.0/split-usr/no-multilib (stable)
+[2026-06-03 08:49:38] [portage]     [30]  default/linux/amd64/23.0/split-usr/no-multilib/selinux (stable)
+[2026-06-03 08:49:38] [portage]     [31]  default/linux/amd64/23.0/split-usr/no-multilib/hardened (stable)
+[2026-06-03 08:49:38] [portage]     [32]  default/linux/amd64/23.0/split-usr/no-multilib/hardened/selinux (stable)
+[2026-06-03 08:49:38] [portage]     [33]  default/linux/amd64/23.0/split-usr/no-multilib/prefix (exp)
+[2026-06-03 08:49:38] [portage]     [34]  default/linux/amd64/23.0/split-usr/no-multilib/prefix/kernel-2.6.32+ (exp)
+[2026-06-03 08:49:38] [portage]     [35]  default/linux/amd64/23.0/split-usr/no-multilib/prefix/kernel-2.6.16+ (exp)
+[2026-06-03 08:49:38] [portage]     [36]  default/linux/amd64/23.0/split-usr/no-multilib/prefix/kernel-3.2+ (exp)
+[2026-06-03 08:49:38] [portage]     [37]  default/linux/amd64/23.0/split-usr/llvm (exp)
+[2026-06-03 08:49:38] [portage]     [38]  default/linux/amd64/23.0/split-usr/hardened (stable)
+[2026-06-03 08:49:38] [portage]     [39]  default/linux/amd64/23.0/split-usr/hardened/selinux (stable)
+[2026-06-03 08:49:38] [portage]     [40]  default/linux/amd64/23.0/x32 (dev)
+[2026-06-03 08:49:38] [portage]     [41]  default/linux/amd64/23.0/x32/systemd (exp)
+[2026-06-03 08:49:38] [portage]     [42]  default/linux/amd64/23.0/split-usr/x32 (exp)
+[2026-06-03 08:49:38] [portage]     [43]  default/hurd/amd64/23.0 (exp)
+[2026-06-03 08:49:38] [portage]     [44]  default/linux/amd64/23.0/musl (dev)
+[2026-06-03 08:49:38] [portage]     [45]  default/linux/amd64/23.0/musl/systemd (dev)
+[2026-06-03 08:49:38] [portage]     [46]  default/linux/amd64/23.0/musl/llvm (exp)
+[2026-06-03 08:49:38] [portage]     [47]  default/linux/amd64/23.0/musl/llvm/systemd (exp)
+[2026-06-03 08:49:38] [portage]     [48]  default/linux/amd64/23.0/musl/hardened (exp)
+[2026-06-03 08:49:38] [portage]     [49]  default/linux/amd64/23.0/musl/hardened/systemd (exp)
+[2026-06-03 08:49:38] [portage]     [50]  default/linux/amd64/23.0/musl/hardened/selinux (exp)
+[2026-06-03 08:49:38] [portage]     [51]  default/linux/amd64/23.0/split-usr/musl (dev)
+[2026-06-03 08:49:38] [portage]     [52]  default/linux/amd64/23.0/split-usr/musl/llvm (exp)
+[2026-06-03 08:49:38] [portage]     [53]  default/linux/amd64/23.0/split-usr/musl/hardened (exp)
+[2026-06-03 08:49:38] [portage]     [54]  default/linux/amd64/23.0/split-usr/musl/hardened/selinux (exp)
+[2026-06-03 08:49:38] [portage] $ chroot /mnt/gentoo /bin/bash -lc eselect profile set default/linux/amd64/23.0
+[2026-06-03 08:49:38] [portage] $ chroot /mnt/gentoo /bin/bash -lc cat /sys/class/dmi/id/product_name /sys/class/dmi/id/product_version 2>/dev/null
+[2026-06-03 08:49:38] [portage]   VirtualBox
+[2026-06-03 08:49:38] [portage]   1.2
+[2026-06-03 08:49:38] [portage] $ nproc
+[2026-06-03 08:49:39] [portage]   1
+[2026-06-03 08:49:39] [portage] $ chroot /mnt/gentoo /bin/bash -lc echo '# These settings were generated by Gently installer' > /etc/portage/make.conf
+[2026-06-03 08:49:39] [portage] $ chroot /mnt/gentoo /bin/bash -lc echo '# Please consult /usr/share/portage/config/make.conf.example for a more' >> /etc/portage/make.conf
+[2026-06-03 08:49:39] [portage] $ chroot /mnt/gentoo /bin/bash -lc echo '# detailed example.' >> /etc/portage/make.conf
+[2026-06-03 08:49:39] [portage] $ chroot /mnt/gentoo /bin/bash -lc echo '' >> /etc/portage/make.conf
+[2026-06-03 08:49:39] [portage] $ chroot /mnt/gentoo /bin/bash -lc echo 'COMMON_FLAGS="-O2 -pipe -march=x86-64"' >> /etc/portage/make.conf
+[2026-06-03 08:49:39] [portage] $ chroot /mnt/gentoo /bin/bash -lc echo 'CFLAGS="${COMMON_FLAGS}"' >> /etc/portage/make.conf
+[2026-06-03 08:49:39] [portage] $ chroot /mnt/gentoo /bin/bash -lc echo 'CXXFLAGS="-O2 -pipe"' >> /etc/portage/make.conf
+[2026-06-03 08:49:39] [portage] $ chroot /mnt/gentoo /bin/bash -lc echo '' >> /etc/portage/make.conf
+[2026-06-03 08:49:39] [portage] $ chroot /mnt/gentoo /bin/bash -lc echo 'MAKEOPTS="-j3 -l1"' >> /etc/portage/make.conf
+[2026-06-03 08:49:39] [portage] $ chroot /mnt/gentoo /bin/bash -lc echo 'USE="-bluetooth -cups -X"' >> /etc/portage/make.conf
+[2026-06-03 08:49:39] [portage] $ chroot /mnt/gentoo /bin/bash -lc echo 'DISTCC_HOSTS="192.168.2.3/36,lzo 94.23.0.137/36 localhost/2"' >> /etc/portage/make.conf
+[2026-06-03 08:49:39] [portage] $ chroot /mnt/gentoo /bin/bash -lc echo 'FEATURES="distcc -network-sandbox"' >> /etc/portage/make.conf
+[2026-06-03 08:49:39] [portage] $ chroot /mnt/gentoo /bin/bash -lc mkdir -p /etc/portage/package.use
+[2026-06-03 08:49:39] [portage] $ chroot /mnt/gentoo /bin/bash -lc emerge --oneshot app-portage/cpuid2cpuflags
+[2026-06-03 08:49:39] [portage]   
+[2026-06-03 08:49:39] [portage]    * IMPORTANT: 20 news items need reading for repository 'gentoo'.
+[2026-06-03 08:49:39] [portage]    * Use eselect news read to view new items.
+[2026-06-03 08:49:39] [portage]   
+[2026-06-03 08:49:40] [portage]   Calculating dependencies  ... done!
+[2026-06-03 08:49:40] [portage]   Dependency resolution took 0.61 s (backtrack: 0/20).
+[2026-06-03 08:49:40] [portage]   
+[2026-06-03 08:49:40] [portage]   
+[2026-06-03 08:49:40] [portage]   >>> Verifying ebuild manifests
+[2026-06-03 08:49:40] [portage]   
+[2026-06-03 08:49:40] [portage]   >>> Emerging (1 of 1) app-portage/cpuid2cpuflags-17::gentoo
+[2026-06-03 08:49:40] [portage]   bash: line 1: /var/cache/distfiles/.__portage_test_write__: Permission denied
+[2026-06-03 08:49:40] [portage]   Adjusting permissions recursively: '/var/cache/distfiles'
+[2026-06-03 08:49:40] [portage]   >>> Downloading 'http://distfiles.gentoo.org/distfiles/layout.conf'
+[2026-06-03 08:49:40] [portage]   --2026-06-03 08:49:40--  http://distfiles.gentoo.org/distfiles/layout.conf
+[2026-06-03 08:49:40] [portage]   Resolving distfiles.gentoo.org... 185.76.11.121, 185.93.3.4, 109.61.88.154, ...
+[2026-06-03 08:49:40] [portage]   Connecting to distfiles.gentoo.org|185.76.11.121|:80... connected.
+[2026-06-03 08:49:40] [portage]   HTTP request sent, awaiting response... 200 OK
+[2026-06-03 08:49:40] [portage]   Length: 38 [text/plain]
+[2026-06-03 08:49:40] [portage]   Saving to: ‘/var/cache/distfiles/.layout.conf.distfiles.gentoo.org.__download__’
+[2026-06-03 08:49:40] [portage]   
+[2026-06-03 08:49:40] [portage]        0K                                                       100% 17,5M=0s
+[2026-06-03 08:49:40] [portage]   
+[2026-06-03 08:49:40] [portage]   2026-06-03 08:49:40 (17,5 MB/s) - ‘/var/cache/distfiles/.layout.conf.distfiles.gentoo.org.__download__’ saved [38/38]
+[2026-06-03 08:49:40] [portage]   
+[2026-06-03 08:49:40] [portage]   >>> Downloading 'http://distfiles.gentoo.org/distfiles/de/cpuid2cpuflags-17.tar.bz2'
+[2026-06-03 08:49:40] [portage]   --2026-06-03 08:49:40--  http://distfiles.gentoo.org/distfiles/de/cpuid2cpuflags-17.tar.bz2
+[2026-06-03 08:49:40] [portage]   Resolving distfiles.gentoo.org... 185.93.3.4, 109.61.88.154, 185.76.11.66, ...
+[2026-06-03 08:49:40] [portage]   Connecting to distfiles.gentoo.org|185.93.3.4|:80... connected.
+[2026-06-03 08:49:40] [portage]   HTTP request sent, awaiting response... 200 OK
+[2026-06-03 08:49:40] [portage]   Length: 94538 (92K) [application/x-bzip2]
+[2026-06-03 08:49:40] [portage]   Saving to: ‘/var/cache/distfiles/cpuid2cpuflags-17.tar.bz2.__download__’
+[2026-06-03 08:49:40] [portage]   
+[2026-06-03 08:49:40] [portage]        0K .......... .......... .......... .......... .......... 54% 1,40M 0s
+[2026-06-03 08:49:40] [portage]       50K .......... .......... .......... .......... ..        100%  125K=0,4s
+[2026-06-03 08:49:40] [portage]   
+[2026-06-03 08:49:40] [portage]   2026-06-03 08:49:40 (246 KB/s) - ‘/var/cache/distfiles/cpuid2cpuflags-17.tar.bz2.__download__’ saved [94538/94538]
+[2026-06-03 08:49:40] [portage]   
+[2026-06-03 08:49:41] [portage]    * cpuid2cpuflags-17.tar.bz2 BLAKE2B SHA512 size ;-) ...                 [ ok ]
+[2026-06-03 08:49:41] [portage]   >>> Unpacking source...
+[2026-06-03 08:49:41] [portage]   >>> Unpacking 'cpuid2cpuflags-17.tar.bz2' to /var/tmp/portage/app-portage/cpuid2cpuflags-17/work
+[2026-06-03 08:49:41] [portage]   >>> Source unpacked in /var/tmp/portage/app-portage/cpuid2cpuflags-17/work
+[2026-06-03 08:49:41] [portage]   >>> Preparing source in /var/tmp/portage/app-portage/cpuid2cpuflags-17/work/cpuid2cpuflags-17 ...
+[2026-06-03 08:49:41] [portage]   >>> Source prepared.
+[2026-06-03 08:49:42] [portage]   >>> Configuring source in /var/tmp/portage/app-portage/cpuid2cpuflags-17/work/cpuid2cpuflags-17 ...
+[2026-06-03 08:49:42] [portage]   ./configure --prefix=/usr --build=x86_64-pc-linux-gnu --host=x86_64-pc-linux-gnu --mandir=/usr/share/man --infodir=/usr/share/info --datadir=/usr/share --sysconfdir=/etc --localstatedir=/var/lib --datarootdir=/usr/share --disable-dependency-tracking --disable-silent-rules --docdir=/usr/share/doc/cpuid2cpuflags-17 --htmldir=/usr/share/doc/cpuid2cpuflags-17/html --libdir=/usr/lib64
+[2026-06-03 08:49:42] [portage]   checking for a BSD-compatible install... /usr/lib/portage/python3.13/ebuild-helpers/xattr/install -c
+[2026-06-03 08:49:42] [portage]   checking whether sleep supports fractional seconds... yes
+[2026-06-03 08:49:42] [portage]   checking filesystem timestamp resolution... 0.01
+[2026-06-03 08:49:42] [portage]   checking whether build environment is sane... yes
+[2026-06-03 08:49:42] [portage]   checking for a race-free mkdir -p... /usr/bin/mkdir -p
+[2026-06-03 08:49:42] [portage]   checking for gawk... gawk
+[2026-06-03 08:49:42] [portage]   checking whether make sets $(MAKE)... yes
+[2026-06-03 08:49:42] [portage]   checking whether make supports nested variables... yes
+[2026-06-03 08:49:42] [portage]   checking xargs -n works... yes
+[2026-06-03 08:49:42] [portage]   checking whether UID '250' is supported by ustar format... yes
+[2026-06-03 08:49:42] [portage]   checking whether GID '250' is supported by ustar format... yes
+[2026-06-03 08:49:42] [portage]   checking how to create a ustar tar archive... gnutar
+[2026-06-03 08:49:42] [portage]   checking for x86_64-pc-linux-gnu-gcc... x86_64-pc-linux-gnu-gcc
+[2026-06-03 08:49:42] [portage]   checking whether the C compiler works... yes
+[2026-06-03 08:49:42] [portage]   checking for C compiler default output file name... a.out
+[2026-06-03 08:49:42] [portage]   checking for suffix of executables... 
+[2026-06-03 08:49:42] [portage]   checking whether we are cross compiling... no
+[2026-06-03 08:49:42] [portage]   checking for suffix of object files... o
+[2026-06-03 08:49:42] [portage]   checking whether the compiler supports GNU C... yes
+[2026-06-03 08:49:42] [portage]   checking whether x86_64-pc-linux-gnu-gcc accepts -g... yes
+[2026-06-03 08:49:42] [portage]   checking for x86_64-pc-linux-gnu-gcc option to enable C11 features... none needed
+[2026-06-03 08:49:42] [portage]   checking whether x86_64-pc-linux-gnu-gcc understands -c and -o together... yes
+[2026-06-03 08:49:42] [portage]   checking whether make supports the include directive... yes (GNU style)
+[2026-06-03 08:49:42] [portage]   checking dependency style of x86_64-pc-linux-gnu-gcc... none
+[2026-06-03 08:49:42] [portage]   checking for stdio.h... yes
+[2026-06-03 08:49:42] [portage]   checking for stdlib.h... yes
+[2026-06-03 08:49:42] [portage]   checking for string.h... yes
+[2026-06-03 08:49:43] [portage]   checking for inttypes.h... yes
+[2026-06-03 08:49:43] [portage]   checking for stdint.h... yes
+[2026-06-03 08:49:43] [portage]   checking for strings.h... yes
+[2026-06-03 08:49:43] [portage]   checking for sys/stat.h... yes
+[2026-06-03 08:49:43] [portage]   checking for sys/types.h... yes
+[2026-06-03 08:49:43] [portage]   checking for unistd.h... yes
+[2026-06-03 08:49:43] [portage]   checking for wchar.h... yes
+[2026-06-03 08:49:43] [portage]   checking for minix/config.h... no
+[2026-06-03 08:49:43] [portage]   checking whether it is safe to define __EXTENSIONS__... yes
+[2026-06-03 08:49:43] [portage]   checking whether _XOPEN_SOURCE should be defined... no
+[2026-06-03 08:49:43] [portage]   checking for uint32_t... yes
+[2026-06-03 08:49:43] [portage]   checking that generated files are newer than configure... done
+[2026-06-03 08:49:43] [portage]   configure: creating ./config.status
+[2026-06-03 08:49:43] [portage]   config.status: creating Makefile
+[2026-06-03 08:49:43] [portage]   config.status: creating config.h
+[2026-06-03 08:49:43] [portage]   config.status: executing depfiles commands
+[2026-06-03 08:49:43] [portage]   >>> Source configured.
+[2026-06-03 08:49:43] [portage]   >>> Compiling source in /var/tmp/portage/app-portage/cpuid2cpuflags-17/work/cpuid2cpuflags-17 ...
+[2026-06-03 08:49:43] [portage]   make -j3 -l1 
+[2026-06-03 08:49:43] [portage]   make  all-am
+[2026-06-03 08:49:43] [portage]   make[1]: Entering directory '/var/tmp/portage/app-portage/cpuid2cpuflags-17/work/cpuid2cpuflags-17'
+[2026-06-03 08:49:43] [portage]   x86_64-pc-linux-gnu-gcc -DHAVE_CONFIG_H -I.     -O2 -pipe -march=x86-64 -c -o src/main.o src/main.c
+[2026-06-03 08:49:43] [portage]   x86_64-pc-linux-gnu-gcc -DHAVE_CONFIG_H -I.     -O2 -pipe -march=x86-64 -c -o src/hwcap.o src/hwcap.c
+[2026-06-03 08:49:43] [portage]   x86_64-pc-linux-gnu-gcc -DHAVE_CONFIG_H -I.     -O2 -pipe -march=x86-64 -c -o src/ppc.o src/ppc.c
+[2026-06-03 08:49:43] [portage]   x86_64-pc-linux-gnu-gcc -DHAVE_CONFIG_H -I.     -O2 -pipe -march=x86-64 -c -o src/x86.o src/x86.c
+[2026-06-03 08:49:44] [portage]   x86_64-pc-linux-gnu-gcc -DHAVE_CONFIG_H -I.     -O2 -pipe -march=x86-64 -c -o src/x86-lib.o src/x86-lib.c
+[2026-06-03 08:49:44] [portage]   x86_64-pc-linux-gnu-gcc -DHAVE_CONFIG_H -I.     -O2 -pipe -march=x86-64 -c -o src/arm.o src/arm.c
+[2026-06-03 08:49:44] [portage]   x86_64-pc-linux-gnu-gcc  -O2 -pipe -march=x86-64  -Wl,-O1 -Wl,--as-needed -Wl,-z,pack-relative-relocs -o cpuid2cpuflags src/main.o src/arm.o src/hwcap.o src/ppc.o src/x86.o src/x86-lib.o  
+[2026-06-03 08:49:44] [portage]   make[1]: Leaving directory '/var/tmp/portage/app-portage/cpuid2cpuflags-17/work/cpuid2cpuflags-17'
+[2026-06-03 08:49:44] [portage]   >>> Source compiled.
+[2026-06-03 08:49:44] [portage]   >>> Test phase [not enabled]: app-portage/cpuid2cpuflags-17
+[2026-06-03 08:49:44] [portage]   
+[2026-06-03 08:49:44] [portage]   >>> Install app-portage/cpuid2cpuflags-17 into /var/tmp/portage/app-portage/cpuid2cpuflags-17/image
+[2026-06-03 08:49:44] [portage]   make -j3 -l1 DESTDIR=/var/tmp/portage/app-portage/cpuid2cpuflags-17/image install 
+[2026-06-03 08:49:44] [portage]   make[1]: Entering directory '/var/tmp/portage/app-portage/cpuid2cpuflags-17/work/cpuid2cpuflags-17'
+[2026-06-03 08:49:44] [portage]   make[1]: Nothing to be done for 'install-data-am'.
+[2026-06-03 08:49:44] [portage]    /usr/bin/mkdir -p '/var/tmp/portage/app-portage/cpuid2cpuflags-17/image/usr/bin'
+[2026-06-03 08:49:44] [portage]     /usr/lib/portage/python3.13/ebuild-helpers/xattr/install -c cpuid2cpuflags '/var/tmp/portage/app-portage/cpuid2cpuflags-17/image/usr/bin'
+[2026-06-03 08:49:44] [portage]   make[1]: Leaving directory '/var/tmp/portage/app-portage/cpuid2cpuflags-17/work/cpuid2cpuflags-17'
+[2026-06-03 08:49:44] [portage]   >>> Completed installing app-portage/cpuid2cpuflags-17 into /var/tmp/portage/app-portage/cpuid2cpuflags-17/image
+[2026-06-03 08:49:44] [portage]   
+[2026-06-03 08:49:44] [portage]    * Final size of build directory: 824 KiB
+[2026-06-03 08:49:44] [portage]    * Final size of installed tree:   48 KiB
+[2026-06-03 08:49:44] [portage]   
+[2026-06-03 08:49:45] [portage]   strip: x86_64-pc-linux-gnu-strip --strip-unneeded -N __gentoo_check_ldflags__ -R .comment -R .GCC.command.line -R .note.gnu.gold-version
+[2026-06-03 08:49:45] [portage]      /usr/bin/cpuid2cpuflags
+[2026-06-03 08:49:45] [portage]   
+[2026-06-03 08:49:45] [portage]   >>> Installing (1 of 1) app-portage/cpuid2cpuflags-17::gentoo
+[2026-06-03 08:49:47] [portage]   
+[2026-06-03 08:49:47] [portage]   >>> Completed (1 of 1) app-portage/cpuid2cpuflags-17::gentoo
+[2026-06-03 08:49:47] [portage]   
+[2026-06-03 08:49:47] [portage]    * GNU info directory index is up-to-date.
+[2026-06-03 08:49:47] [portage]   
+[2026-06-03 08:49:47] [portage]    * IMPORTANT: 20 news items need reading for repository 'gentoo'.
+[2026-06-03 08:49:47] [portage]    * Use eselect news read to view new items.
+[2026-06-03 08:49:47] [portage]   
+[2026-06-03 08:49:47] [portage] $ chroot /mnt/gentoo /bin/bash -lc echo "*/* $(cpuid2cpuflags)" > /etc/portage/package.use/00cpu-flags
+[2026-06-03 08:49:47] [portage] $ chroot /mnt/gentoo /bin/bash -lc mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.license
+[2026-06-03 08:49:47] [portage] $ chroot /mnt/gentoo /bin/bash -lc echo '*/* amd64' > /etc/portage/package.accept_keywords/gently
+[2026-06-03 08:49:47] [portage] $ chroot /mnt/gentoo /bin/bash -lc echo '*/* @FREE' > /etc/portage/package.license/gently
+[2026-06-03 08:49:47] [portage] $ chroot /mnt/gentoo /bin/bash -lc cat /etc/portage/make.conf
+[2026-06-03 08:49:47] [portage]   # These settings were generated by Gently installer
+[2026-06-03 08:49:47] [portage]   # Please consult /usr/share/portage/config/make.conf.example for a more
+[2026-06-03 08:49:47] [portage]   # detailed example.
+[2026-06-03 08:49:47] [portage]   
+[2026-06-03 08:49:47] [portage]   COMMON_FLAGS="-O2 -pipe -march=x86-64"
+[2026-06-03 08:49:47] [portage]   CFLAGS="${COMMON_FLAGS}"
+[2026-06-03 08:49:47] [portage]   CXXFLAGS="-O2 -pipe"
+[2026-06-03 08:49:47] [portage]   
+[2026-06-03 08:49:47] [portage]   MAKEOPTS="-j3 -l1"
+[2026-06-03 08:49:47] [portage]   USE="-bluetooth -cups -X"
+[2026-06-03 08:49:47] [portage]   DISTCC_HOSTS="192.168.2.3/36,lzo 94.23.0.137/36 localhost/2"
+[2026-06-03 08:49:47] [portage]   FEATURES="distcc -network-sandbox"
+[2026-06-03 08:49:47] [portage] $ chroot /mnt/gentoo /bin/bash -lc emerge --verbose --update --deep --changed-use @world
+[2026-06-03 08:49:47] [portage]   
+[2026-06-03 08:49:47] [portage]    * IMPORTANT: 20 news items need reading for repository 'gentoo'.
+[2026-06-03 08:49:47] [portage]    * Use eselect news read to view new items.
+[2026-06-03 08:49:47] [portage]   
+[2026-06-03 08:49:47] [portage]   
+[2026-06-03 08:49:47] [portage]   These are the packages that would be merged, in order:
+[2026-06-03 08:49:47] [portage]   
+[2026-06-03 08:49:51] [portage]   Calculating dependencies  ... done!
+[2026-06-03 08:49:51] [portage]   Dependency resolution took 3.64 s (backtrack: 0/20).
+[2026-06-03 08:49:51] [portage]   
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-lang/python-exec-conf-2.4.6:2::gentoo  PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_14t) (-python3_15) (-python3_15t) (-pypy3_11%) (-python3_11%) (-python3_13t%)" 86 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-lang/python-exec-2.4.10:2::gentoo  USE="(native-symlinks) -test" PYTHON_TARGETS="(python3_12) (python3_13) (python3_14) (python3_15) (python3_15t) (-python3_14t) (-pypy3_11%*) (-python3_11%*) (-python3_13t%)" 83 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] sys-libs/libseccomp-2.6.0-r3::gentoo  USE="-debug -python -static-libs -test -verify-sig" ABI_X86="(64) -32 (-x32)" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_11%)" 670 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild  N     ] net-libs/ngtcp2-1.22.0::gentoo  USE="openssl ssl -gnutls -verify-sig" ABI_X86="(64) -32 (-x32)" 682 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] sys-apps/file-5.47-r3::gentoo  USE="bzip2 seccomp zlib -lzip -lzma -python -static-libs -verify-sig -zstd" ABI_X86="(64) -32 (-x32)" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_11%)" 2.615 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild  N     ] net-libs/nghttp3-1.9.0::gentoo  ABI_X86="(64) -32 (-x32)" 391 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-libs/libgcrypt-1.12.2:0/20::gentoo  USE="asm getentropy -doc -static-libs (-verify-sig)" ABI_X86="(64) -32 (-x32)" CPU_FLAGS_X86="aes* avx* avx2* sha* sse4_1* -avx512f -padlock" 4.338 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] net-misc/rsync-3.4.3::gentoo  USE="acl iconv ssl xattr xxhash -examples -lz4 -rrsync -stunnel -system-zlib -verify-sig -zstd" PYTHON_SINGLE_TARGET="python3_14* -python3_12 -python3_13* (-python3_11%)" 1.188 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] app-crypt/libb2-0.98.1-r3::gentoo  USE="openmp* -native-cflags -static-libs" ABI_X86="(64) -32 (-x32)" 275 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild  N     ] net-libs/nghttp2-1.68.0:0/1.14::gentoo  USE="-debug -hpack-tools -jemalloc -systemd -test -utils -verify-sig -xml" ABI_X86="(64) -32 (-x32)" 1.652 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] net-misc/curl-8.19.0::gentoo  USE="adns alt-svc ftp hsts http2* http3* httpsrr imap openssl pop3 psl quic* smtp ssl tftp websockets -brotli -debug (-ech) -gnutls -gopher -idn -kerberos -ldap -mbedtls -rtmp (-rustls) -samba -sasl-scram -ssh -static-libs -telnet -test -verify-sig -zstd" ABI_X86="(64) -32 (-x32)" CURL_SSL="openssl -gnutls -mbedtls (-rustls)" 2.723 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] app-portage/portage-utils-0.97.1::gentoo  USE="openmp* qmanifest -static" 1.927 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-libs/json-c-0.18:0/5.1::gentoo  USE="-doc -static-libs -test -threads" ABI_X86="(64) -32 (-x32)" CPU_FLAGS_X86="rdrand*" 393 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-build/meson-format-array-0::gentoo  PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_11%)" 0 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-python/installer-0.7.0::gentoo  USE="-test" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_14t) (-python3_15) (-python3_15t) (-pypy3_11%) (-python3_11%) (-python3_13t%)" 907 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-python/gpep517-19::gentoo  USE="-test" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_14t) (-python3_15) (-python3_15t) (-pypy3_11%) (-python3_11%) (-python3_13t%)" 29 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-python/flit-core-3.12.0::gentoo  USE="-test -verify-provenance" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_14t) (-python3_15) (-python3_15t) (-pypy3_11%) (-python3_11%) (-python3_13t%)" 53 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-python/idna-3.14::gentoo  USE="-verify-provenance" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_14t) (-python3_15) (-python3_15t) (-pypy3_11%) (-python3_11%) (-python3_13t%)" 194 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild     U  ] dev-python/ensurepip-pip-26.1.2::gentoo [26.0.1::gentoo] USE="(test-rust) -test" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-pypy3_11%) (-python3_11%)" 9.052 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild     U  ] dev-python/packaging-26.2::gentoo [26.1::gentoo] USE="-test -verify-provenance" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_14t) (-python3_15) (-python3_15t) (-pypy3_11%) (-python3_11%) (-python3_13t%)" 223 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-python/more-itertools-11.0.2::gentoo  USE="-doc" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_14t) (-python3_15) (-python3_15t) (-pypy3_11%) (-python3_11%) (-python3_13t%)" 142 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild     U  ] dev-python/trove-classifiers-2026.6.1.19::gentoo [2026.1.14.14::gentoo] USE="-test -verify-provenance" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_14t) (-python3_15) (-python3_15t) (-pypy3_11%) (-python3_11%) (-python3_13t%)" 17 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild     U  ] dev-python/pathspec-1.1.1::gentoo [1.1.0::gentoo] USE="-verify-provenance" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_14t) (-python3_15) (-python3_15t) (-pypy3_11%) (-python3_11%) (-python3_13t%)" 133 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-python/platformdirs-4.9.6::gentoo  USE="-test -verify-provenance" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_14t) (-python3_15) (-python3_15t) (-pypy3_11%) (-python3_11%) (-python3_13t%)" 29 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-python/jaraco-context-6.1.2::gentoo  USE="-test" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_14t) (-python3_15) (-python3_15t) (-pypy3_11%) (-python3_11%) (-python3_13t%)" 17 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-python/editables-0.5::gentoo  USE="-test" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_14t) (-pypy3_11%) (-python3_11%) (-python3_13t%)" 16 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-python/mypy-extensions-1.1.0::gentoo  USE="-test" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-pypy3_11%) (-python3_11%)" 7 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-python/typing-extensions-4.15.0::gentoo  USE="-test -verify-provenance" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_14t) (-python3_15) (-python3_15t) (-pypy3_11%) (-python3_11%) (-python3_13t%)" 107 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-python/jaraco-functools-4.4.0::gentoo  USE="-test" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_14t) (-python3_15) (-python3_15t) (-pypy3_11%) (-python3_11%) (-python3_13t%)" 20 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-python/wheel-0.47.0::gentoo  USE="-test -verify-provenance" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_14t) (-python3_15) (-python3_15t) (-pypy3_11%) (-python3_11%) (-python3_13t%)" 63 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-python/jaraco-text-4.2.0::gentoo  USE="-test" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_14t) (-python3_15) (-python3_15t) (-pypy3_11%) (-python3_11%) (-python3_13t%)" 20 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-python/setuptools-82.0.1::gentoo  USE="-test" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_14t) (-python3_15) (-python3_15t) (-pypy3_11%) (-python3_11%) (-python3_13t%)" 1.126 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-python/vcs-versioning-1.1.1::gentoo  USE="-test -verify-provenance" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_14t) (-python3_15) (-python3_15t) (-pypy3_11%) (-python3_11%) (-python3_13t%)" 96 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-python/setuptools-scm-10.0.5::gentoo  USE="-test -verify-provenance" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_14t) (-python3_15) (-python3_15t) (-pypy3_11%) (-python3_11%) (-python3_13t%)" 56 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-python/certifi-3024.7.22::gentoo  USE="-test" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_15) (-pypy3_11%) (-python3_11%)" 13 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-python/pysocks-1.7.1-r2::gentoo  PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_15) (-pypy3_11%) (-python3_11%)" 278 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-build/meson-1.9.2::gentoo  USE="-test -test-full -verify-sig" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-pypy3_11%) (-python3_11%)" 2.667 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-python/pluggy-1.6.0::gentoo  USE="-test -verify-provenance" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_14t) (-python3_15) (-python3_15t) (-pypy3_11%) (-python3_11%) (-python3_13t%)" 68 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-python/librt-0.11.0::gentoo  USE="-debug -test -verify-provenance" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_11%)" 196 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-python/markupsafe-3.0.3::gentoo  USE="native-extensions -debug -test -verify-provenance" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_14t) (-python3_15) (-python3_15t) (-pypy3_11%) (-python3_11%) (-python3_13t%)" 79 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild     U  ] sys-apps/gentoo-functions-1.7.7::gentoo [1.7.6::gentoo] USE="-test" 31 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-libs/libxml2-2.15.3:2/16::gentoo  USE="readline -doc -icu -python -static-libs -test" ABI_X86="(64) -32 (-x32)" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_11%)" 3.079 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] app-misc/pax-utils-1.3.10::gentoo  USE="-caps -man -python (-seccomp) -test" PYTHON_SINGLE_TARGET="python3_14* -python3_12 -python3_13* (-python3_11%)" 121 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-python/hatchling-1.29.0::gentoo  USE="-test" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_14t) (-python3_15) (-python3_15t) (-pypy3_11%) (-python3_11%) (-python3_13t%)" 5.178 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-python/jinja2-3.1.6::gentoo  USE="-doc -test -verify-provenance" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_15) (-pypy3_11%) (-python3_11%)" 240 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-python/mypy-1.20.2::gentoo  USE="-debug (-native-extensions) -test" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_11%)" 3.748 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-python/charset-normalizer-3.4.7::gentoo  USE="native-extensions -debug -test -verify-provenance" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_15) (-pypy3_11%) (-python3_11%)" 141 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] sys-devel/gettext-0.23.2::gentoo  USE="acl cxx ncurses nls openmp* (xattr) -doc -emacs -git -java -static-libs -verify-sig" ABI_X86="(64) -32 (-x32)" 10.792 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-libs/libxslt-1.1.45::gentoo  USE="crypt -debug -debugger -examples -python -static-libs" ABI_X86="(64) -32 (-x32)" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_11%)" 1.485 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-python/hatch-vcs-0.5.0::gentoo  USE="-test" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_14t) (-python3_15) (-python3_15t) (-pypy3_11%) (-python3_11%) (-python3_13t%)" 12 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] sys-apps/util-linux-2.41.4-r1::gentoo  USE="cramfs hardlink logger ncurses nls pam readline su suid (unicode) -audit -build -caps -cryptsetup -fdformat -kill -magic -python (-rtas) (-selinux) -slang -static-libs -systemd -test -tty-helpers -udev -uuidd -verify-sig" ABI_X86="(64) -32 (-x32)" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_11%)" 9.247 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-python/urllib3-2.7.0::gentoo  USE="-brotli -http2 -test -verify-provenance -zstd" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-python3_15) (-pypy3_11%) (-python3_11%)" 424 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] net-misc/iputils-20250605-r3::gentoo  USE="arping caps filecaps* nls suid -clockdiff -doc -idn -test -tracepath -verify-sig" 461 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-python/requests-2.33.1::gentoo  USE="(test-rust) -socks5 -test -verify-provenance" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-pypy3_11%) (-python3_11%)" 131 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] dev-libs/nettle-3.10.2:0/8-6::gentoo  USE="asm gmp -doc -static-libs -verify-sig" ABI_X86="(64) -32 (-x32)" CPU_FLAGS_X86="aes* pclmul* sha*" 2.583 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] app-portage/gemato-20.12::gentoo  USE="gpg -pretty-log -test -tools" PYTHON_TARGETS="python3_14* -python3_12 -python3_13* (-pypy3_11%) (-python3_11%)" 92 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild     U  ] sys-apps/portage-3.0.79-r1::gentoo [3.0.79::gentoo] USE="(ipc) native-extensions rsync-verify xattr -apidoc -build -doc -gentoo-dev (-selinux) -test" PYTHON_TARGETS="python3_14* -python3_12 -python3_13*" 1.207 KiB
+[2026-06-03 08:49:51] [portage]   [ebuild   R    ] sys-apps/systemd-utils-260.1-r1::gentoo  USE="acl kmod sysctl tmpfiles udev -boot -kernel-install -secureboot (-selinux) (-split-usr) -sysusers -test -ukify" ABI_X86="(64) -32 (-x32)" PYTHON_SINGLE_TARGET="python3_14* -python3_12 -python3_13* (-python3_11%)" 17.170 KiB
+[2026-06-03 08:49:51] [portage]   
+[2026-06-03 08:49:51] [portage]   Total: 58 packages (6 upgrades, 3 new, 49 reinstalls), Size of downloads: 88.744 KiB
+[2026-06-03 08:49:52] [portage]   
+[2026-06-03 08:49:52] [portage]   
+[2026-06-03 08:49:52] [portage]   >>> Verifying ebuild manifests
+[2026-06-03 08:49:52] [portage]   
+[2026-06-03 08:49:52] [portage]   >>> Running pre-merge checks for dev-libs/libgcrypt-1.12.2
+[2026-06-03 08:49:53] [portage]   
+[2026-06-03 08:49:53] [portage]   >>> Running pre-merge checks for app-crypt/libb2-0.98.1-r3
+[2026-06-03 08:49:53] [portage]   
+[2026-06-03 08:49:53] [portage]   >>> Running pre-merge checks for sys-devel/gettext-0.23.2
+[2026-06-03 08:49:54] [portage]   
+[2026-06-03 08:49:54] [portage]   >>> Running pre-merge checks for sys-apps/util-linux-2.41.4-r1
+[2026-06-03 08:49:54] [portage]   
+[2026-06-03 08:49:54] [portage]   >>> Running pre-merge checks for sys-apps/portage-3.0.79-r1
+[2026-06-03 08:49:54] [portage]    * Determining the location of the kernel source code
+[2026-06-03 08:49:54] [portage]    * Unable to find kernel sources at /usr/src/linux
+[2026-06-03 08:49:54] [portage]    * Please make sure that /usr/src/linux points at your running kernel, 
+[2026-06-03 08:49:54] [portage]    * (or the kernel you wish to build against).
+[2026-06-03 08:49:54] [portage]    * Alternatively, set the KERNEL_DIR environment variable to the kernel sources location
+[2026-06-03 08:49:54] [portage]    * Unable to calculate Linux Kernel version for build, attempting to use running version
+[2026-06-03 08:49:54] [portage]    * Checking for suitable kernel configuration options ...
+[2026-06-03 08:49:55] [portage]    [ ok ]
+[2026-06-03 08:49:55] [portage]   
+[2026-06-03 08:49:55] [portage]   >>> Emerging (1 of 58) dev-lang/python-exec-conf-2.4.6::gentoo
+...
+[2026-06-03 09:08:49] [portage]   >>> Completed (57 of 58) sys-apps/portage-3.0.79-r1::gentoo
+[2026-06-03 09:08:49] [portage]   
+[2026-06-03 09:08:49] [portage]   >>> Failed to install sys-apps/portage-3.0.79-r1, Log file:
+[2026-06-03 09:08:49] [portage]   
+[2026-06-03 09:08:49] [portage]   >>>  '/var/tmp/portage/sys-apps/portage-3.0.79-r1/temp/build.log'
+[2026-06-03 09:08:49] [portage]   
+[2026-06-03 09:08:49] [portage]    * Messages for package sys-apps/portage-3.0.79-r1:
+[2026-06-03 09:08:49] [portage]   
+[2026-06-03 09:08:49] [portage]    * Unable to find kernel sources at /usr/src/linux
+[2026-06-03 09:08:49] [portage]    * Unable to calculate Linux Kernel version for build, attempting to use running version
+[2026-06-03 09:08:49] [portage]   
+[2026-06-03 09:08:49] [portage]    * Messages for package dev-python/jinja2-3.1.6:
+[2026-06-03 09:08:49] [portage]   
+[2026-06-03 09:08:49] [portage]    * For i18n support, please emerge dev-python/babel.
+[2026-06-03 09:08:49] [portage]   
+[2026-06-03 09:08:49] [portage]    * Messages for package dev-python/mypy-1.20.2:
+[2026-06-03 09:08:49] [portage]   
+[2026-06-03 09:08:49] [portage]    * Install additional packages for optional runtime features:
+[2026-06-03 09:08:49] [portage]    *   dev-python/psutil for dmypy status -v support for memory use
+[2026-06-03 09:08:49] [portage]   
+[2026-06-03 09:08:49] [portage]    * Messages for package sys-apps/util-linux-2.41.4-r1:
+[2026-06-03 09:08:49] [portage]   
+[2026-06-03 09:08:49] [portage]    * The mesg/wall/write tools have been disabled due to USE=-tty-helpers.
+[2026-06-03 09:08:49] [portage]   
+[2026-06-03 09:08:49] [portage]    * Messages for package sys-apps/portage-3.0.79-r1:
+[2026-06-03 09:08:49] [portage]   
+[2026-06-03 09:08:49] [portage]    * Unable to find kernel sources at /usr/src/linux
+[2026-06-03 09:08:49] [portage]    * Unable to calculate Linux Kernel version for build, attempting to use running version
+[2026-06-03 09:08:49] [portage]   
+[2026-06-03 09:08:49] [portage]    * GNU info directory index is up-to-date.
+[2026-06-03 09:08:49] [portage]   
+[2026-06-03 09:08:49] [portage]    * IMPORTANT: 20 news items need reading for repository 'gentoo'.
+[2026-06-03 09:08:49] [portage]    * Use eselect news read to view new items.
+ERROR: Install phase 'portage' failed: [portage] Command failed (rc=1): chroot /mnt/gentoo /bin/bash -lc 'emerge --verbose --update --deep --changed-use @world'
+Warning: distcc requested but no masquerade dir can be found in /usr/lib*/distcc/bin
+Warning: distcc requested but no masquerade dir can be found in /usr/lib*/distcc/bin
+ * After world updates, it is important to remove obsolete packages with
+ * emerge --depclean. Refer to `man emerge` for more information.

@@ -128,7 +128,7 @@ def _get_total_memory_mb(runner: Runner) -> int:
 	usage even though physical pages are what trigger the OOM killer.
 	"""
 	result = runner.run_shell(
-		r"awk '/MemTotal/ {ram=$2} /SwapTotal/ {swap=$2} END {printf \"%d\", (ram+swap)/1024}' /proc/meminfo",
+		"awk '/MemTotal/ {ram=$2} /SwapTotal/ {swap=$2} END {printf \"%d\", (ram+swap)/1024}' /proc/meminfo",
 		check=True,
 		phase=PHASE_KEY,
 	)
@@ -157,7 +157,7 @@ def _ram_aware_jobs(ram_mb: int, cpu_jobs: int) -> int:
 	return cpu_jobs
 
 
-def _calculate_makeopts(config: GentlyConfig, runner: Runner) -> str:
+def _calculate_makeopts(config: GentlyConfig, runner: Runner, *, distcc_available: bool = True) -> str:
 	"""Calculate MAKEOPTS based on distcc, available CPUs, and RAM.
 
 	Respects config.portage.makeopts if explicitly set.
@@ -173,6 +173,9 @@ def _calculate_makeopts(config: GentlyConfig, runner: Runner) -> str:
 	Without distcc, -j is RAM-constrained (prevents OOM on low-memory
 	systems) and -l{nproc} prevents oversubscription under link-heavy
 	or I/O-bound loads.
+
+	distcc_available should be False when distcc is configured but not
+	yet installed (e.g. during the initial @world update).
 	"""
 	# 1. User-specified makeopts has priority
 	if config.portage and config.portage.makeopts:
@@ -182,7 +185,7 @@ def _calculate_makeopts(config: GentlyConfig, runner: Runner) -> str:
 	nproc = _get_nproc(runner)
 	
 	d = config.distcc
-	if d and d.enabled:
+	if d and d.enabled and distcc_available:
 		# Distcc: remote workers do the heavy lifting.
 		# -j is NOT RAM-limited — remote machines have their own RAM.
 		# -l{nproc} prevents local preprocessor/linker oversubscription.
@@ -287,7 +290,7 @@ def _calculate_cxxflags(config: GentlyConfig, cflags: str) -> str:
 	return cflags
 
 
-def _write_makeconf(config: GentlyConfig, runner: Runner) -> None:
+def _write_makeconf(config: GentlyConfig, runner: Runner, *, include_distcc: bool = True) -> None:
 	"""Write /etc/portage/make.conf following the Gentoo stage3 template style.
 
 	Uses COMMON_FLAGS idiom (the standard Gentoo pattern).
@@ -295,18 +298,22 @@ def _write_makeconf(config: GentlyConfig, runner: Runner) -> None:
 	- CHOST (auto-detected by Gentoo)
 	- ACCEPT_KEYWORDS (belongs in /etc/portage/package.accept_keywords/)
 	- ACCEPT_LICENSE (belongs in /etc/portage/package.license/)
+
+	When include_distcc is False, FEATURES=distcc and DISTCC_HOSTS are
+	omitted so that @world can be updated safely before distcc itself
+	is installed.
 	"""
 	make_config_path = "/etc/portage/make.conf"
 
 	# Check if distcc is enabled
-	distcc_enabled = config.distcc is not None and config.distcc.enabled
+	distcc_enabled = (config.distcc is not None and config.distcc.enabled) and include_distcc
 	
 	# Calculate compiler flags
 	common_flags = _calculate_cflags(config, distcc_enabled, runner)
 	cxxflags = _calculate_cxxflags(config, common_flags)
 	
-	# Calculate MAKEOPTS
-	makeopts = _calculate_makeopts(config, runner)
+	# Calculate MAKEOPTS — conservative when distcc isn't available yet
+	makeopts = _calculate_makeopts(config, runner, distcc_available=include_distcc)
 	
 	# Build make.conf content in the Gentoo style
 	lines = [
@@ -357,9 +364,9 @@ def _write_makeconf(config: GentlyConfig, runner: Runner) -> None:
 	extra_features: list[str] = []
 	if config.portage and config.portage.getbinpkg:
 		extra_features.append("getbinpkg")
-	if distcc_enabled and config.distcc:
+	if distcc_enabled:
 		d = config.distcc
-		if d.hosts:
+		if d and d.hosts:
 			hosts_str = " ".join(d.hosts)
 			lines.append(f'DISTCC_HOSTS="{hosts_str}"')
 		extra_features.append("distcc")
@@ -604,21 +611,29 @@ def _setup_binrepos(config: GentlyConfig, runner: Runner) -> None:
 
 
 def execute(config: GentlyConfig, runner: Runner) -> None:
-	"""Portage phase: configure Portage and sync the tree."""
+	"""Portage phase: configure Portage, sync the tree, and install packages."""
+	distcc_enabled = config.distcc is not None and config.distcc.enabled
+
 	# 1. Synchronize the Portage tree first.
 	_setup_portage(config, runner)
 
-	# 2. Then configure distcc (which needs the tree to be available).
-	_setup_distcc(config, runner)
+	# 2. Write the initial make.conf WITHOUT distcc features.
+	#    FEATURES="distcc" would break @world because distcc isn't installed yet.
+	_write_makeconf(config, runner, include_distcc=False)
 
-	# 3. Write the optimized make.conf.
-	_write_makeconf(config, runner)
-
-	# 4. Write binrepos.conf if a binary host is configured (modern Portage 3.x API).
+	# 3. Write binrepos.conf if a binary host is configured (modern Portage 3.x API).
 	_setup_binrepos(config, runner)
 
-	# 5. Detect and write CPU flags into package.use/00cpu-flags.
+	# 4. Detect and write CPU flags into package.use/00cpu-flags.
 	_setup_cpu_flags(config, runner)
 
-	# 6. Write package-specific configuration (accept_keywords, accept_license, world update).
+	# 5. Write package-specific configuration and update @world.
+	#    At this point make.conf has no FEATURES="distcc", so @world builds cleanly.
 	_write_package_config(config, runner)
+
+	# 6. If distcc is enabled, install it now that @world is fully updated,
+	#    then rewrite make.conf WITH distcc features so subsequent emerges
+	#    (kernel, optional packages) use it.
+	if distcc_enabled:
+		_setup_distcc(config, runner)
+		_write_makeconf(config, runner, include_distcc=True)
