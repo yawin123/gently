@@ -67,14 +67,29 @@ def _check_stage3_local_path(config: GentlyConfig, runner: Runner) -> None:
 
 	If the path is set but unreadable, clear it so _ensure_stage3_available
 	falls through to auto-download (or tarball_url) instead of crashing.
+
+	For SSH execution, copy the local file to the remote work directory.
 	"""
 	stage3 = config.stage3
 	if stage3 is None or not stage3.local_path:
 		return
 
-	local_path = shlex.quote(stage3.local_path)
-	result = runner.run_shell(f"test -r {local_path}", check=False, phase=PHASE_KEY)
-	if result.returncode != 0:
+	try:
+		# Load file to remote if running via SSH
+		remote_path = runner.load_file(stage3.local_path)
+		stage3.local_path = remote_path
+		
+		# Verify the transferred file is readable on the remote
+		local_path = shlex.quote(stage3.local_path)
+		result = runner.run_shell(
+			f"test -r {local_path}",
+			check=False,
+			phase=PHASE_KEY,
+		)
+		if result.returncode != 0:
+			stage3.local_path = None
+			
+	except FileNotFoundError:
 		# Path set but not available — clear it and let _ensure_stage3_available
 		# download/cache the tarball automatically.
 		stage3.local_path = None

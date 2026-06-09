@@ -98,7 +98,8 @@ accept_license  = "@FREE"
 name = "default/linux/amd64/23.0/desktop"
 
 [kernel]
-method = "binary"
+method = "installkernel"
+binary = true
 
 [bootloader]
 type = "grub"

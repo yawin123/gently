@@ -182,6 +182,27 @@ class Runner(ABC):
 	def _execute(self, spec: CommandSpec) -> CommandResult:
 		raise NotImplementedError
 
+	@abstractmethod
+	def load_file(self, source_path: str, dest_name: str = None) -> str:
+		"""
+		Copy a local file to the remote work directory and return its path.
+
+		For SSH transport: copies source_path (local) to work_dir/dest_name (remote).
+		For local transport: returns source_path unchanged.
+
+		Args:
+			source_path: Local path to the file to copy.
+			dest_name: Optional name for the file in the work directory.
+			           If None, uses the original filename.
+
+		Returns:
+			Absolute path to the file in the work directory.
+
+		Raises:
+			FileNotFoundError: If source_path does not exist locally.
+		"""
+		raise NotImplementedError
+
 	def run(self, spec: CommandSpec) -> CommandResult:
 		if not spec.argv:
 			raise RunnerError("CommandSpec.argv cannot be empty")
@@ -277,6 +298,28 @@ class LocalRunner(Runner):
 	@property
 	def transport(self) -> str:
 		return "local"
+
+	def load_file(self, source_path: str, dest_name: str = None) -> str:
+		"""
+		Verify a local file exists and return its absolute path.
+
+		For LocalRunner, the file is already local, so no copy is needed.
+		The dest_name parameter is ignored (kept for interface consistency).
+
+		Args:
+			source_path: Local path to the file.
+			dest_name: Ignored for local runner.
+
+		Returns:
+			Absolute path to the file.
+
+		Raises:
+			FileNotFoundError: If source_path does not exist.
+		"""
+		path = os.path.abspath(source_path)
+		if not os.path.exists(path):
+			raise FileNotFoundError(f"File not found: {source_path}")
+		return path
 
 	def _execute(self, spec: CommandSpec) -> CommandResult:
 		started = time.time()
@@ -388,10 +431,127 @@ class SshRunner(Runner):
 		self.extra_ssh_options = list(extra_ssh_options or [])
 		self._run_impl = run_impl
 		self._session_started = False
+		# Cache de archivos cargados: {remote_path: local_fingerprint}
+		self._loaded_files: dict[str, str] = {}
 
 	@property
 	def transport(self) -> str:
 		return f"ssh:{self.target}"
+
+	def _compute_file_hash(self, filepath: str) -> str:
+		"""Compute SHA256 hash of a local file using sha256sum."""
+		result = subprocess.run(
+			["sha256sum", filepath],
+			capture_output=True,
+			text=True,
+			check=True,
+		)
+		return result.stdout.split()[0]
+
+	def _get_remote_file_hash(self, remote_path: str) -> str | None:
+		"""Get SHA256 hash of a remote file via ssh."""
+		try:
+			result = self.run_shell(
+				f"sha256sum {shlex.quote(remote_path)}",
+				phase=None,
+				check=False,
+			)
+			if result.returncode == 0:
+				# Output format: "hash  filename"
+				return result.stdout.strip().split()[0]
+		except Exception:
+			pass
+		return None
+
+	def load_file(self, source_path: str, dest_path: str = None) -> str:
+		"""
+		Copy a local file to the remote work directory and return its path.
+
+		For SSH transport: copies source_path (local) to dest_path (remote).
+		Updates the remote work directory if it doesn't exist.
+		Skips copy if file already exists with same content (based on SHA256 hash).
+
+		Args:
+			source_path: Local path to the file.
+			dest_path: Remote path where the file should be copied.
+			           If a directory, the file is copied with its original name.
+			           If None, defaults to /tmp/<filename>.
+
+		Returns:
+			Absolute path to the file in the remote work directory.
+
+		Raises:
+			FileNotFoundError: If source_path does not exist.
+		"""
+		path = os.path.abspath(source_path)
+		filename = os.path.basename(path)
+
+		if dest_path:
+			# If dest_path is a directory, use it with the original filename
+			if os.path.isdir(dest_path):
+				remote_path = os.path.join(dest_path, filename)
+			else:
+				remote_path = dest_path
+		else:
+			# No dest_path specified, use /tmp/<filename>
+			remote_path = f"/tmp/{filename}"
+
+		remote_dir = os.path.dirname(remote_path)
+
+		if self.dry_run:
+			# In dry-run mode, simulate the copy and return the remote path
+			return remote_path
+		
+		if not os.path.exists(path):
+			raise FileNotFoundError(f"File not found: {source_path}")
+
+		# Check if file is already loaded with same content
+		if remote_path in self._loaded_files:
+			local_hash = self._compute_file_hash(path)
+			if self._loaded_files[remote_path] == local_hash:
+				# File already exists with same content, skip copy
+				return remote_path
+
+		# Compute local file hash
+		local_hash = self._compute_file_hash(path)
+
+		# Check if remote file exists and has same hash
+		remote_hash = self._get_remote_file_hash(remote_path)
+		if remote_hash and remote_hash == local_hash:
+			# Remote file exists with same content, skip copy
+			self._loaded_files[remote_path] = local_hash
+			return remote_path
+
+		# Ensure the remote work directory exists
+		self.run_shell(
+			f"mkdir -p {shlex.quote(remote_dir)}",
+			phase=None,
+		)
+
+		# Copy the file using scp
+		scp_cmd = [
+			"scp", *self._ssh_opts(),
+			path, f"{self.target}:{remote_path}"
+		]
+		scp_cmd, scp_env = self._with_auth(scp_cmd)
+
+		cp = subprocess.run(
+			scp_cmd,
+			env=scp_env,
+			capture_output=True,
+			text=True,
+			check=False,
+		)
+
+		if cp.returncode != 0:
+			raise RunnerError(
+				f"Failed to copy {source_path} to {self.target}:{remote_path}: {cp.stderr.strip()}"
+			)
+
+		# Update cache
+		self._loaded_files[remote_path] = local_hash
+
+		return remote_path
 
 	def _ssh_opts(self) -> list[str]:
 		opts = [

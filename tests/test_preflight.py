@@ -44,6 +44,8 @@ class _FakeRunner:
         self.gpg_auto_retrieve_ok = gpg_auto_retrieve_ok
         self.commands: list[CommandSpec] = []
         self.shell_commands: list[str] = []
+        self.loaded_files: list[tuple[str, str]] = []  # Track load_file calls
+        self._loaded_files: dict[str, str] = {}  # Cache for load_file (remote_path -> hash)
 
     def run(self, spec: CommandSpec) -> CommandResult:
         self.commands.append(spec)
@@ -137,6 +139,25 @@ class _FakeRunner:
         if check and rc != 0:
             raise CommandExecutionError(CommandSpec(argv=result.argv, check=check, phase=phase), result)
         return result
+
+    def load_file(self, source_path: str, dest_path: str = None) -> str:
+        """Simulate loading a file for SSH execution."""
+        self.loaded_files.append((source_path, dest_path))
+        if not self.dry_run and source_path not in self.readable_paths:
+            raise FileNotFoundError(f"File not found: {source_path}")
+        return dest_path or source_path
+
+    def _compute_file_hash(self, filepath: str) -> str:
+        """Simulate computing file hash."""
+        import hashlib
+        return hashlib.sha256(filepath.encode()).hexdigest()
+
+    def _get_remote_file_hash(self, remote_path: str) -> str | None:
+        """Simulate getting remote file hash."""
+        # Simulate that some files already exist remotely
+        if remote_path in self.loaded_files:
+            return self._compute_file_hash(remote_path)
+        return None
 
 
 def test_preflight_success_runs_checks():
