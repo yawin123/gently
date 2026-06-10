@@ -845,10 +845,8 @@ def run_installation(
 				raise AbortError("Installation aborted by user")
 
 			started = time.time()
-			if progress_cb:
-				progress_cb(phase.key, f"Starting {phase.title}")
-			if backend is not None:
-				backend.install_progress_update(phase.key, f"Starting {phase.title}")
+			if runner.log_dispatcher:
+				runner.log_dispatcher(phase.key, f"Starting {phase.title}")
 			try:
 				phase.execute(config, runner)
 				phase_result = InstallPhaseResult(
@@ -858,10 +856,8 @@ def run_installation(
 					duration_sec=time.time() - started,
 				)
 				report.phases.append(phase_result)
-				if progress_cb:
-					progress_cb(phase.key, f"Completed {phase.title}")
-				if backend is not None:
-					backend.install_progress_update(phase.key, f"Completed {phase.title}")
+				if runner.log_dispatcher:
+					runner.log_dispatcher(phase.key, f"Completed {phase.title}")
 			except AbortError:
 				# User-requested abort — still capture the phase result but stop
 				# processing further phases.  Cleanup will run in the finally block.
@@ -873,8 +869,9 @@ def run_installation(
 					error="Aborted by user",
 				)
 				report.phases.append(phase_result)
-				if backend is not None:
-					backend.install_progress_update(phase.key, "ABORTED by user")
+
+				if runner.log_dispatcher:
+					runner.log_dispatcher(phase.key, "ABORTED by user")
 				raise
 			except Exception as exc:
 				phase_result = InstallPhaseResult(
@@ -885,10 +882,8 @@ def run_installation(
 					error=str(exc),
 				)
 				report.phases.append(phase_result)
-				if progress_cb:
-					progress_cb(phase.key, f"Failed {phase.title}: {exc}")
-				if backend is not None:
-					backend.install_progress_update(phase.key, f"FAILED: {exc}")
+				if runner.log_dispatcher:
+					runner.log_dispatcher(phase.key, f"FAILED: {exc}")
 				raise InstallPhaseError(
 					phase_key=phase.key,
 					phase_title=phase.title,
@@ -905,8 +900,8 @@ def run_installation(
 					error=type(exc).__name__,
 				)
 				report.phases.append(phase_result)
-				if backend is not None:
-					backend.install_progress_update(phase.key, f"INTERRUPTED ({type(exc).__name__})")
+				if runner.log_dispatcher:
+					runner.log_dispatcher(phase.key, f"INTERRUPTED ({type(exc).__name__})")
 				raise
 
 		return report

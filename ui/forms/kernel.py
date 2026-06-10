@@ -4,7 +4,9 @@ from model.config import GentlyConfig, KernelConfig, KernelCustomConfig
 from ui.abstract import FieldSpec, FormSpec
 from ui.forms.base import SectionForm
 
-_METHODS = ["installkernel", "menuconfig", "custom"]
+_METHODS = ["installkernel", "genkernel", "menuconfig", "custom"]
+_AVAILABLE_IN_V1 = "installkernel"
+_RESERVED_FOR_FUTURE = "genkernel, menuconfig, custom"
 
 
 class KernelForm(SectionForm):
@@ -23,14 +25,14 @@ class KernelForm(SectionForm):
             fields=[
                 FieldSpec(key="method", label="Build method", i18n_key="form_kernel_method_label",
                           type="choice", default=k.method or "installkernel", options=_METHODS,
-                          help="form_kernel_method_help"),
+                          help=f"v1: {_AVAILABLE_IN_V1} | future: {_RESERVED_FOR_FUTURE}"),
                 FieldSpec(key="binary", label="Use binary packages", i18n_key="form_kernel_binary_label",
                           type="bool", default=k.binary if k.binary is not None else True,
                           visible_when=("method", "installkernel"),
                           help="form_kernel_binary_help"),
                 FieldSpec(key="config_path", label="Config file path", i18n_key="form_kernel_config_path_label",
                           type="text", default=custom.config_path, required=False,
-                          visible_when=("method", ("menuconfig", "custom")),
+                          visible_when=("method", ("menuconfig", "custom", "genkernel")),
                           help="form_kernel_config_path_help"),
                 FieldSpec(key="extra_modules", label="Extra modules", i18n_key="form_kernel_extra_modules_label",
                           type="list", default=list(k.extra_modules) if k.extra_modules else None,

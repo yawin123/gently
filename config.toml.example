@@ -213,10 +213,15 @@ unmask = ["=media-video/ffmpeg-6.1"]
 #   installkernel — distribution kernel managed by Portage
 #                   binary = true  (default) → emerge sys-kernel/gentoo-kernel-bin (prebuilt)
 #                   binary = false           → emerge sys-kernel/gentoo-kernel (compiles locally)
+#                   Both use sys-kernel/installkernel for post-install tasks:
+#                   * Copies kernel image to /boot or /efi
+#                   * Generates initramfs (if dracut USE flag is enabled)
+#                   * Updates bootloader configuration (GRUB, systemd-boot, etc.)
 #
-# Planned for v2:
-#   menuconfig — manual interactive compilation with custom .config
-#   custom     — a pre-existing .config is provided, compiles without interaction
+# Planned for v2+:
+#   genkernel    — use genkernel --automagic to auto-generate .config then compile
+#   menuconfig   — manual interactive compilation with menuconfig/nconfig
+#   custom       — use a pre-existing .config file provided by the user
 #
 method = "installkernel"
 binary = true   # true = prebuilt binary (recommended); false = compile locally
@@ -225,7 +230,7 @@ binary = true   # true = prebuilt binary (recommended); false = compile locally
 # extra_modules = ["v4l2loopback", "virtualbox"]
 
 # [kernel.custom]
-# Only relevant if method = "custom" or "menuconfig" (v2)
+# Only relevant if method = "custom", "menuconfig", or "genkernel" (v2+)
 # config_path = "/path/to/.config"
 
 

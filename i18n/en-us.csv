@@ -103,13 +103,13 @@ form_portage_profile_label,Profile
 form_portage_profile_help,"Active Portage profile"
 # ── Forms: Kernel ─────────────────────────────────────────
 form_kernel_title,Kernel configuration
-form_kernel_subtitle,"installkernel: distribution kernel (v1). menuconfig/custom: manual (v2)."
+form_kernel_subtitle,"installkernel: distribution kernel (v1). genkernel/menuconfig/custom: manual (v2+)."
 form_kernel_method_label,Installation method
-form_kernel_method_help,"installkernel: distribution kernel (binary or source)  |  menuconfig/custom: manual (v2)"
+form_kernel_method_help,"v1: installkernel (binary or source) | v2+: genkernel, menuconfig, custom"
 form_kernel_binary_label,Use binary packages
 form_kernel_binary_help,"true: emerge gentoo-kernel-bin (no local compilation, recommended)  |  false: compile locally with gentoo-kernel"
 form_kernel_config_path_label,Config file path
-form_kernel_config_path_help,"Path to a .config file (only used with menuconfig or custom)"
+form_kernel_config_path_help,"Path to a .config file (used with genkernel, menuconfig, or custom methods)"
 form_kernel_extra_modules_label,Extra modules
 form_kernel_extra_modules_help,"Additional kernel modules to force-include"
 form_kernel_firmware_sep,Additional packages

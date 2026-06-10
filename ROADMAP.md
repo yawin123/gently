@@ -660,8 +660,16 @@ Extracción: `tar xpvf <tarball> -C /mnt/gentoo --xattrs-include='*.*' --numeric
 
 **Fase 5 — Kernel** (`installer/kernel.py`)
 
-- `method = "binary"`: `emerge sys-kernel/gentoo-kernel-bin`
-- `method = "gentoo"`: `emerge sys-kernel/gentoo-kernel`
+- `method = "installkernel"` (v1):
+  - `binary = true` (default): `emerge sys-kernel/gentoo-kernel-bin` (prebuilt)
+  - `binary = false`: `emerge sys-kernel/gentoo-kernel` (compilación local)
+  - Ambos usan `sys-kernel/installkernel` para:
+    * Copiar imagen del kernel a /boot o /efi
+    * Generar initramfs (si el USE flag dracut está habilitado)
+    * Actualizar configuración del bootloader (GRUB, systemd-boot, etc.)
+- `method = "genkernel"` (v2+): usar genkernel --automagic para generar .config y compilar
+- `method = "menuconfig"` (v2+): configuración interactiva con menuconfig/nconfig
+- `method = "custom"` (v2+): usar un .config personalizado proporcionado por el usuario
 - Cualquier otro valor: error explícito indicando que no está implementado en v1.
 
 **Fase 6 — Sistema base** (`installer/system.py`)

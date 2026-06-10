@@ -69,8 +69,14 @@ def _cfg(method=None, binary=None, linux_firmware=None, intel_microcode=None, so
 def test_installkernel_binary_true_emerges_bin():
     runner = _FakeRunner()
     execute(_cfg("installkernel", binary=True), runner)
-    assert len(runner.shell_commands) == 1
-    cmd, _ = runner.shell_commands[0]
+    # Should have at least 3 commands: mkdir, echo, emerge
+    assert len(runner.shell_commands) >= 3
+    # First command: create package.use directory
+    assert any("mkdir -p" in cmd for cmd, _ in runner.shell_commands)
+    # Second command: write package.use file
+    assert any("sys-kernel/installkernel dracut" in cmd for cmd, _ in runner.shell_commands)
+    # Last command: emerge gentoo-kernel-bin
+    cmd, _ = runner.shell_commands[-1]
     assert "sys-kernel/gentoo-kernel-bin" in cmd
     print("PASS  installkernel binary=True emerges sys-kernel/gentoo-kernel-bin")
 
@@ -78,7 +84,14 @@ def test_installkernel_binary_true_emerges_bin():
 def test_installkernel_binary_defaults_to_true():
     runner = _FakeRunner()
     execute(_cfg("installkernel"), runner)
-    cmd, _ = runner.shell_commands[0]
+    # Should have at least 3 commands: mkdir, echo, emerge
+    assert len(runner.shell_commands) >= 3
+    # First command: create package.use directory
+    assert any("mkdir -p" in cmd for cmd, _ in runner.shell_commands)
+    # Second command: write package.use file
+    assert any("sys-kernel/installkernel dracut" in cmd for cmd, _ in runner.shell_commands)
+    # Last command: emerge gentoo-kernel-bin
+    cmd, _ = runner.shell_commands[-1]
     assert "sys-kernel/gentoo-kernel-bin" in cmd
     print("PASS  installkernel binary=None defaults to gentoo-kernel-bin")
 
@@ -86,7 +99,14 @@ def test_installkernel_binary_defaults_to_true():
 def test_installkernel_binary_false_emerges_source():
     runner = _FakeRunner()
     execute(_cfg("installkernel", binary=False), runner)
-    cmd, _ = runner.shell_commands[0]
+    # Should have at least 3 commands: mkdir, echo, emerge
+    assert len(runner.shell_commands) >= 3
+    # First command: create package.use directory
+    assert any("mkdir -p" in cmd for cmd, _ in runner.shell_commands)
+    # Second command: write package.use file
+    assert any("sys-kernel/installkernel dracut" in cmd for cmd, _ in runner.shell_commands)
+    # Last command: emerge gentoo-kernel (source)
+    cmd, _ = runner.shell_commands[-1]
     assert "sys-kernel/gentoo-kernel-bin" not in cmd
     assert "sys-kernel/gentoo-kernel" in cmd
     print("PASS  installkernel binary=False emerges sys-kernel/gentoo-kernel (source)")
@@ -95,8 +115,9 @@ def test_installkernel_binary_false_emerges_source():
 def test_installkernel_emerge_runs_in_chroot():
     runner = _FakeRunner()
     execute(_cfg("installkernel"), runner)
-    _, chroot = runner.shell_commands[0]
-    assert chroot is True
+    # All commands should run in chroot
+    for cmd, chroot in runner.shell_commands:
+        assert chroot is True, f"Command '{cmd}' should run in chroot"
     print("PASS  installkernel emerge runs with chroot=True")
 
 
