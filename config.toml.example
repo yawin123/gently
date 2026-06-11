@@ -226,12 +226,31 @@ unmask = ["=media-video/ffmpeg-6.1"]
 method = "installkernel"
 binary = true   # true = prebuilt binary (recommended); false = compile locally
 
+# Sign kernel modules (only applies when binary = false).
+# Adds "modules-sign" to USE in /etc/portage/make.conf.
+# Default: true for source-compiled kernels, false otherwise.
+modules_sign = true
+
+# Secure Boot support — sign the kernel image (only applies when binary = false).
+# Adds "secureboot" to USE in /etc/portage/make.conf.
+# Default: false (requires signing keys; optional).
+secureboot = false
+
+# Optional: install firmware packages for hardware support.
+# linux_firmware  = true  # WiFi, GPU, and other device firmware (recommended)
+# intel_microcode = true  # CPU microcode updates for Intel processors
+# sof_firmware    = true  # Sound Open Firmware for Intel audio DSPs
+
 # Additional modules to include (independent of the method)
 # extra_modules = ["v4l2loopback", "virtualbox"]
 
 # [kernel.custom]
 # Only relevant if method = "custom", "menuconfig", or "genkernel" (v2+)
 # config_path = "/path/to/.config"
+# Signing keys for modules-sign and secureboot (shared by both features):
+# sign_key  = "/path/to/kernel_key.pem"
+# sign_cert = "/path/to/kernel_key.pem"   # may be same as sign_key if .pem contains both
+# sign_hash = "sha512"                    # defaults to sha512 if omitted
 
 
 # ------------------------------------------------------------

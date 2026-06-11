@@ -113,6 +113,7 @@ class PartitionConfig(_ToDictMixin):
     flags:         list[str] | None = field(default=None)
     luks:          bool | None      = field(default=None)
     luks_label:    str | None       = field(default=None)
+    device:        str | None       = field(default=None)  # device path after creation (e.g., /dev/sda3)
 
 
 @dataclass
@@ -180,6 +181,9 @@ class PortageConfig(_ToDictMixin):
 @dataclass
 class KernelCustomConfig(_ToDictMixin):
     config_path: str | None = field(default=None)
+    sign_key:    str | None = field(default=None)
+    sign_cert:   str | None = field(default=None)
+    sign_hash:   str | None = field(default=None)
 
 
 @dataclass
@@ -190,6 +194,8 @@ class KernelConfig(_ToDictMixin):
     linux_firmware:  bool | None              = field(default=None)
     intel_microcode: bool | None              = field(default=None)
     sof_firmware:    bool | None              = field(default=None)
+    modules_sign:    bool | None              = field(default=None)
+    secureboot:      bool | None              = field(default=None)
     custom:          KernelCustomConfig | None = field(default=None)
 
 

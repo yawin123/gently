@@ -105,7 +105,7 @@ form_portage_profile_help,"Active Portage profile"
 form_kernel_title,Kernel configuration
 form_kernel_subtitle,"installkernel: distribution kernel (v1). genkernel/menuconfig/custom: manual (v2+)."
 form_kernel_method_label,Installation method
-form_kernel_method_help,"v1: installkernel (binary or source) | v2+: genkernel, menuconfig, custom"
+form_kernel_method_help,"installkernel: distribution kernel (binary or source)  |  menuconfig/custom: manual (v2)"
 form_kernel_binary_label,Use binary packages
 form_kernel_binary_help,"true: emerge gentoo-kernel-bin (no local compilation, recommended)  |  false: compile locally with gentoo-kernel"
 form_kernel_config_path_label,Config file path
@@ -119,6 +119,16 @@ form_kernel_intel_microcode_label,Intel microcode
 form_kernel_intel_microcode_help,"Emerge sys-firmware/intel-microcode (CPU microcode updates for Intel)"
 form_kernel_sof_firmware_label,SOF firmware
 form_kernel_sof_firmware_help,"Emerge sys-firmware/sof-firmware (Sound Open Firmware for Intel audio DSPs)"
+form_kernel_signing_sep,Module signing
+form_kernel_modules_sign_label,Sign kernel modules
+form_kernel_modules_sign_help,"Enable modules-sign USE flag (recommended for source kernels). Adds verification keys."
+form_kernel_secureboot_label,Secure Boot signing
+form_kernel_secureboot_help,"Sign the kernel image for Secure Boot. Requires signing keys (see below). Disabled by default."
+form_kernel_sign_key_label,Signing key (.pem)
+form_kernel_sign_key_help,"Path to PEM key for kernel/module signing (same key for both unless spec specifies otherwise)"
+form_kernel_sign_cert_label,Signing certificate (.pem)
+form_kernel_sign_cert_help,"Path to certificate. May be the same .pem file if it contains both key and cert."
+form_kernel_sign_hash_label,Hash algorithm
 # ── Forms: Bootloader ─────────────────────────────────────
 form_bootloader_title,Bootloader
 form_bootloader_subtitle,"GRUB fields are only used when type=grub"

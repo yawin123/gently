@@ -49,11 +49,38 @@ class KernelForm(SectionForm):
                 FieldSpec(key="sof_firmware", label="sof-firmware", i18n_key="form_kernel_sof_firmware_label",
                           type="bool", default=k.sof_firmware if k.sof_firmware is not None else False,
                           required=False, help="form_kernel_sof_firmware_help"),
+                FieldSpec(key="_signing_sep", label="form_kernel_signing_sep",
+                          i18n_key="form_kernel_signing_sep", type="separator",
+                          required=False, visible_when=("method", "installkernel")),
+                FieldSpec(key="modules_sign", label="Sign kernel modules",
+                          i18n_key="form_kernel_modules_sign_label",
+                          type="bool", default=k.modules_sign if k.modules_sign is not None else True,
+                          required=False, visible_when=("method", "installkernel"),
+                          help="form_kernel_modules_sign_help"),
+                FieldSpec(key="secureboot", label="Secure Boot signing",
+                          i18n_key="form_kernel_secureboot_label",
+                          type="bool", default=k.secureboot if k.secureboot is not None else False,
+                          required=False, visible_when=("method", "installkernel"),
+                          help="form_kernel_secureboot_help"),
+                FieldSpec(key="sign_key", label="Signing key (.pem)",
+                          i18n_key="form_kernel_sign_key_label",
+                          type="text", default=custom.sign_key, required=False,
+                          visible_when=("secureboot", True),
+                          help="form_kernel_sign_key_help"),
+                FieldSpec(key="sign_cert", label="Signing certificate (.pem)",
+                          i18n_key="form_kernel_sign_cert_label",
+                          type="text", default=custom.sign_cert, required=False,
+                          visible_when=("secureboot", True),
+                          help="form_kernel_sign_cert_help"),
+                FieldSpec(key="sign_hash", label="Hash algorithm",
+                          i18n_key="form_kernel_sign_hash_label",
+                          type="choice", default=custom.sign_hash or "sha512",
+                          options=["sha512", "sha384", "sha256"], required=False,
+                          visible_when=("secureboot", True)),
             ],
         )
 
     def apply(self, config: GentlyConfig, values: dict) -> GentlyConfig:
-        config_path = values.get("config_path") or None
         method = values.get("method") or None
         binary = values.get("binary")
         if binary is None and method == "installkernel":
@@ -65,6 +92,13 @@ class KernelForm(SectionForm):
             linux_firmware=values.get("linux_firmware") or None,
             intel_microcode=values.get("intel_microcode") or None,
             sof_firmware=values.get("sof_firmware") or None,
-            custom=KernelCustomConfig(config_path=config_path) if config_path else None,
+            modules_sign=values.get("modules_sign") if method == "installkernel" else None,
+            secureboot=values.get("secureboot") if method == "installkernel" else None,
+            custom=KernelCustomConfig(
+                config_path=values.get("config_path") or None,
+                sign_key=values.get("sign_key") or None,
+                sign_cert=values.get("sign_cert") or None,
+                sign_hash=values.get("sign_hash") or None,
+            ) if any(values.get(k) for k in ("config_path", "sign_key", "sign_cert", "sign_hash")) else None,
         )
         return config

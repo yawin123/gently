@@ -119,6 +119,16 @@ form_kernel_intel_microcode_label,Intel microcode
 form_kernel_intel_microcode_help,"Emerge sys-firmware/intel-microcode (actualizaciones de microcódigo para Intel)"
 form_kernel_sof_firmware_label,SOF firmware
 form_kernel_sof_firmware_help,"Emerge sys-firmware/sof-firmware (Sound Open Firmware para DSP de audio Intel)"
+form_kernel_signing_sep,Firma de módulos
+form_kernel_modules_sign_label,Firmar módulos del kernel
+form_kernel_modules_sign_help,"Activar flag USE modules-sign (recomendado para kernels compilados). Añade claves de verificación."
+form_kernel_secureboot_label,Firma Secure Boot
+form_kernel_secureboot_help,"Firmar la imagen del kernel para Secure Boot. Requiere claves de firma (ver abajo). Desactivado por defecto."
+form_kernel_sign_key_label,Clave de firma (.pem)
+form_kernel_sign_key_help,"Ruta a la clave PEM para firma del kernel/módulos (misma clave para ambos salvo que se especifique otra)"
+form_kernel_sign_cert_label,Certificado de firma (.pem)
+form_kernel_sign_cert_help,"Ruta al certificado. Puede ser el mismo .pem si contiene clave y certificado."
+form_kernel_sign_hash_label,Algoritmo de hash
 # ── Forms: Bootloader ─────────────────────────────────────
 form_bootloader_title,Gestor de arranque
 form_bootloader_subtitle,"Los campos de GRUB solo se usan cuando type=grub"

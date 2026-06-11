@@ -198,6 +198,8 @@ def _ensure_signature(stage3: Stage3Config, url: str | None, runner: Runner) -> 
 
 	Downloads the .asc file if neither signature_path nor signature_url
 	is given — derives the URL from the tarball URL by appending '.asc'.
+	If *url* is None and neither signature_path nor signature_url is set,
+	resolves the tarball URL from stage3 config to derive the .asc path.
 	"""
 	sig_path = STAGE3_CACHE + ".asc"
 
@@ -212,10 +214,9 @@ def _ensure_signature(stage3: Stage3Config, url: str | None, runner: Runner) -> 
 		elif url:
 			sig_url = url + ".asc"
 		else:
-			raise PreflightError(
-				"Cannot verify signature: no tarball URL to derive .asc path from, "
-				"and neither signature_url nor signature_path is configured"
-			)
+			# Cached tarball, no explicit signature — derive from config.
+			url = _resolve_stage3_url(stage3, runner)
+			sig_url = url + ".asc"
 		_download_file(sig_url, sig_path, runner)
 
 	_verify_signature(STAGE3_CACHE, sig_path, runner)
@@ -225,35 +226,30 @@ def _ensure_stage3_available(config: GentlyConfig, runner: Runner) -> None:
 	"""Ensure the stage3 tarball is available locally.
 
 	Resolution order:
-	  1. If config.stage3.local_path is set → already verified by _check_stage3_local_path.
-	  2. If the tarball is already cached at STAGE3_CACHE → re-verify GPG if needed.
-	  3. Otherwise, download from tarball_url or auto-discover from Gentoo autobuilds.
+	  1. local_path already set → nothing to do.
+	  2. Dry-run → placeholder so the pipeline prints realistic commands.
+	  3. Cached at STAGE3_CACHE → skip download, re-verify if needed.
+	  4. Otherwise → resolve URL, download, verify if needed.
 
-	In dry-run mode the download is skipped entirely — no network calls,
-	no file-system checks.
+	When the tarball is cached, the URL is only resolved if the signature
+	is also needed but not yet cached — avoids unnecessary network calls.
 	"""
 	stage3 = config.stage3
-	if stage3 is None:
-		return
-
-	# Already available locally — skip.
-	if stage3.local_path:
+	if stage3 is None or stage3.local_path:
 		return
 
 	if runner.dry_run:
-		# In dry-run, simulate a resolved path so the rest of the pipeline
-		# prints realistic-looking commands rather than crashing on None.
 		config.stage3.local_path = STAGE3_CACHE
 		return
 
-	url: str | None = None
 	cached = _is_cached(STAGE3_CACHE, runner)
 
 	if not cached:
 		url = _resolve_stage3_url(stage3, runner)
 		_download_file(url, STAGE3_CACHE, runner)
+	else:
+		url = None
 
-	# Re-verify even when cached (safety on idempotent runs).
 	if stage3.verify_signature:
 		_ensure_signature(stage3, url, runner)
 

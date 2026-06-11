@@ -197,6 +197,9 @@ def _create_partitions(
 				phase=PHASE_KEY,
 			)
 
+		# Save partition device path for later use
+		part.device = f"{disk.device}{i}"
+
 
 # ---------------------------------------------------------------------------
 # Filesystem formatting
@@ -299,8 +302,9 @@ def _get_uuid(device: str, runner: Runner) -> str | None:
 		check=False,
 		phase=PHASE_KEY,
 	)
+	# In dry_run mode, return a simulated UUID for testing purposes
 	if runner.dry_run:
-		return None
+		return "12345678-1234-1234-1234-123456789012"
 	uuid = result.stdout.strip()
 	return uuid if uuid else None
 

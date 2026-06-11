@@ -143,15 +143,15 @@ def form_loop(
     while True:
         height, width = stdscr.getmaxyx()
         hr = _header_rows(form)
-        visible = _visible_fields(form, values)
-        n = len(visible)
-        max_visible = height - hr - 1
+        display_fields = _visible_fields(form, values)
+        n = len(display_fields)
+        max_display = height - hr - 1
 
         # Keep current field in view
         if current < scroll:
             scroll = current
-        elif current >= scroll + max_visible:
-            scroll = current - max_visible + 1
+        elif current >= scroll + max_display:
+            scroll = current - max_display + 1
         scroll = max(0, scroll)
 
         draw_form(stdscr, form, values, current, scroll, backend)
@@ -161,12 +161,12 @@ def form_loop(
             raise KeyboardInterrupt
         if key in (curses.KEY_DOWN, ord('\t')):
             next_c = (current + 1) % n
-            while visible[next_c].type == "separator" and next_c != current:
+            while display_fields[next_c].type == "separator" and next_c != current:
                 next_c = (next_c + 1) % n
             current = next_c
         elif key in (curses.KEY_UP, curses.KEY_BTAB):
             next_c = (current - 1) % n
-            while visible[next_c].type == "separator" and next_c != current:
+            while display_fields[next_c].type == "separator" and next_c != current:
                 next_c = (next_c - 1) % n
             current = next_c
         elif key == curses.KEY_F2:
@@ -189,7 +189,7 @@ def form_loop(
             result[0] = {"__action__": "delete"}
             return
         elif key in (curses.KEY_ENTER, 10, 13):
-            field = visible[current]
+            field = display_fields[current]
             height, width = stdscr.getmaxyx()
             row, col, fw = _value_pos(form, current, scroll, width, values, backend)
 
@@ -215,12 +215,12 @@ def form_loop(
                 result[0] = {"__action__": "subsection", "__field__": field.key, "__values__": dict(values)}
                 return
         elif key == ord(' '):
-            if visible[current].type == "bool":
-                values[visible[current].key] = not bool(
-                    values[visible[current].key]
+            if display_fields[current].type == "bool":
+                values[display_fields[current].key] = not bool(
+                    values[display_fields[current].key]
                 )
         elif key == ord('?'):
-            field = visible[current]
+            field = display_fields[current]
             if field.help:
                 help_text = backend.translate(field.help)
                 show_popup(stdscr, backend.translate("ui_help_popup_title"), help_text.split('\n'),
