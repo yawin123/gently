@@ -528,6 +528,12 @@ def _write_package_config(config: GentlyConfig, runner: Runner) -> None:
 		chroot=True,
 	)
 
+	#Update portage to the latest version after the sync, to ensure we have the latest features and bug fixes.
+	runner.run_shell("emerge --oneshot --update sys-apps/portage", phase=PHASE_KEY, chroot=True, check=False)
+	runner.run_shell("env-update && source /etc/profile", phase=PHASE_KEY, chroot=True)
+	#runner.run_shell("eselect python update", phase=PHASE_KEY, chroot=True)
+	runner.run_shell("emerge --oneshot sys-apps/portage", phase=PHASE_KEY, chroot=True, check=False)
+
 	# Update @world to apply new configuration (e.g., accept_keywords)
 	runner.run_shell(
 		f"emerge --verbose --update --deep --changed-use @world",
